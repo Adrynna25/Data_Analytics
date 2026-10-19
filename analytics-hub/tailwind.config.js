@@ -30,6 +30,7 @@ export default {
         input: 'var(--input)',
         ring: ch('ring'),
         surface: 'var(--surface)',
+        soft: { DEFAULT: 'var(--soft)', hover: 'var(--soft-hover)' },
         card: { DEFAULT: 'var(--card)', foreground: ch('foreground') },
         popover: { DEFAULT: 'var(--popover)', foreground: ch('foreground') },
         accent: { DEFAULT: 'var(--accent)', foreground: ch('foreground') },

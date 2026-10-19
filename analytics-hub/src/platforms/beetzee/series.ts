@@ -1,5 +1,4 @@
 import { hashString, mulberry32 } from '@/shared/chart';
-import { MONTHS } from '@/shared/format';
 import type { BzPeriod } from './data';
 
 export interface Series {
@@ -7,7 +6,7 @@ export interface Series {
   values: number[];
 }
 
-const COUNTS: Record<BzPeriod, number> = { daily: 12, monthly: 31, yearly: 12 };
+const COUNTS: Record<BzPeriod, number> = { daily: 12, weekly: 7, monthly: 31 };
 
 function labelFor(period: BzPeriod, i: number): string {
   if (period === 'daily') {
@@ -15,11 +14,11 @@ function labelFor(period: BzPeriod, i: number): string {
     const h12 = h % 12 === 0 ? 12 : h % 12;
     return `${h12} ${h < 12 ? 'AM' : 'PM'}`;
   }
-  if (period === 'monthly') return `May ${i + 1}`;
-  return MONTHS[i];
+  if (period === 'weekly') return `May ${25 + i}`;
+  return `May ${i + 1}`;
 }
 
-/** Seasonal shape for each period: evening peak, weekend bumps, October peak. */
+/** Seasonal shape for each period: evening peak (daily), weekend bumps (weekly, monthly). */
 function seasonal(period: BzPeriod, i: number): number {
   if (period === 'daily') {
     const h = i * 2;
@@ -28,13 +27,10 @@ function seasonal(period: BzPeriod, i: number): number {
     if (h === 18 || h === 22) return 1.25;
     return 1;
   }
-  if (period === 'monthly') {
-    const dow = new Date(2025, 4, i + 1).getDay();
-    return dow === 0 || dow === 6 ? 1.18 : 1;
-  }
-  if (i === 9) return 1.38; // October
-  if (i === 8 || i === 10) return 1.12;
-  return 1;
+  // Weekly covers May 25–31, monthly May 1–31: weekends get a bump.
+  const day = period === 'weekly' ? 25 + i : i + 1;
+  const dow = new Date(2025, 4, day).getDay();
+  return dow === 0 || dow === 6 ? 1.18 : 1;
 }
 
 /**

@@ -27,33 +27,37 @@ export function TripketLogo() {
   return (
     <span className="inline-flex items-center gap-2.5">
       <TripketMark />
-      <span className="font-display text-[19px] font-extrabold tracking-tight text-[#f8f7f5]">
+      <span className="font-display text-[19px] font-extrabold tracking-tight text-foreground">
         Tripket <span className="text-[#f97316]">PH</span>
       </span>
     </span>
   );
 }
 
+/** Beetzee mark colors: white wordmark in dark mode, deep purple in light mode (set in index.css). */
+const LOGO_FG = 'var(--bz-logo-fg, #ffffff)';
+const LOGO_CUT = 'var(--bz-logo-cut, #0f0617)';
+
 /** Play-button tile: the Beetzee square icon. */
 export function BeetzeeMark({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 28 28" aria-hidden>
-      <rect width="28" height="28" rx="8" fill="#ffffff" />
-      <path d="M11 8.6v10.8a.8.8 0 0 0 1.2.7l8.6-5.4a.8.8 0 0 0 0-1.4l-8.6-5.4a.8.8 0 0 0-1.2.7z" fill="#0f0617" />
+      <rect width="28" height="28" rx="8" style={{ fill: LOGO_FG }} />
+      <path d="M11 8.6v10.8a.8.8 0 0 0 1.2.7l8.6-5.4a.8.8 0 0 0 0-1.4l-8.6-5.4a.8.8 0 0 0-1.2.7z" style={{ fill: LOGO_CUT }} />
     </svg>
   );
 }
 
-/** White "BeetzeePLAY" wordmark. Width scales the whole lockup (150px sidebar, 112px mobile). */
+/** "BeetzeePLAY" wordmark (white in dark mode). Width scales the whole lockup (150px sidebar, 112px mobile). */
 export function BeetzeeLogo({ width = 150 }: { width?: number }) {
   return (
     <svg width={width} height={(width * 30) / 150} viewBox="0 0 150 30" role="img" aria-label="Beetzee Play">
-      <rect x="0" y="1" width="28" height="28" rx="8" fill="#ffffff" />
-      <path d="M11 9.6v10.8a.8.8 0 0 0 1.2.7l8.6-5.4a.8.8 0 0 0 0-1.4l-8.6-5.4a.8.8 0 0 0-1.2.7z" fill="#0f0617" />
+      <rect x="0" y="1" width="28" height="28" rx="8" style={{ fill: LOGO_FG }} />
+      <path d="M11 9.6v10.8a.8.8 0 0 0 1.2.7l8.6-5.4a.8.8 0 0 0 0-1.4l-8.6-5.4a.8.8 0 0 0-1.2.7z" style={{ fill: LOGO_CUT }} />
       <text
         x="35"
         y="21"
-        fill="#ffffff"
+        style={{ fill: LOGO_FG }}
         fontFamily="Montserrat, system-ui, sans-serif"
         fontSize="16.5"
         letterSpacing="-0.2"

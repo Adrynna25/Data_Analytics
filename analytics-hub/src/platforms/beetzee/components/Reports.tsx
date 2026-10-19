@@ -38,7 +38,7 @@ function CampaignTable({ data, period, highlight }: { data: BeetzeeData; period:
         {data.campaigns.map((c, i) => {
           const on = highlight === c.id;
           return (
-            <TableRow key={c.id} aria-selected={highlight ? on : undefined} className={cn(on && 'bg-[#2d0044]')}>
+            <TableRow key={c.id} aria-selected={highlight ? on : undefined} className={cn(on && 'bg-[var(--bz-gold-soft)]')}>
               <TableCell>
                 <span className="block text-[13px] font-bold">{c.name}</span>
                 <span className="block text-[11px] text-subtle">{c.channel}</span>
@@ -52,7 +52,7 @@ function CampaignTable({ data, period, highlight }: { data: BeetzeeData; period:
               <TableCell className="text-right font-semibold">{c.spend[period].label}</TableCell>
               <TableCell>
                 <span className="flex items-center gap-2">
-                  <span className="h-1.5 w-24 overflow-hidden rounded-full bg-[#271439]">
+                  <span className="h-1.5 w-24 overflow-hidden rounded-full bg-accent">
                     <span className="block h-full rounded-full" style={{ width: `${(c.share / 40) * 100}%`, background: CHANNEL_COLORS[i] }} />
                   </span>
                   <span className="text-xs font-semibold">{c.share.toFixed(1)}%</span>
@@ -88,9 +88,9 @@ function Funnel({ data, period }: { data: BeetzeeData; period: BzPeriod }) {
               <span className="mr-1.5 text-subtle">{i + 1}.</span>
               {s.label}
             </span>
-            <span className="h-7 overflow-hidden rounded-lg bg-[#271439] max-[520px]:order-last max-[520px]:col-span-2">
+            <span className="h-7 overflow-hidden rounded-lg bg-accent max-[520px]:order-last max-[520px]:col-span-2">
               <span
-                className="flex h-full min-w-[6px] items-center rounded-lg px-2 text-[11px] font-bold text-[#0f0617]"
+                className="flex h-full min-w-[6px] items-center rounded-lg px-2 text-[11px] font-bold text-background"
                 style={{ width: `${s.rate}%`, background: s.color }}
               >
                 {s.rate >= 15 ? `${s.rate}%` : ''}
@@ -103,7 +103,7 @@ function Funnel({ data, period }: { data: BeetzeeData; period: BzPeriod }) {
           </li>
         ))}
       </ol>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-[11px] border border-[#ff4e7144] bg-[var(--bz-coral-soft)] px-4 py-3">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-[11px] border border-danger/25 bg-[var(--bz-coral-soft)] px-4 py-3">
         <span className="text-[13px] font-semibold">Customer acquisition cost</span>
         <span className="text-[13px] text-muted-foreground">
           <strong className="text-base font-extrabold text-foreground">{fx.cac}</strong> per paying user ·{' '}
@@ -140,7 +140,7 @@ export function buildReports(view: BzView, data: BeetzeeData, period: BzPeriod, 
                 { key: 'spend', label: 'Spend', values: spend.values, color: ACCENT_HEX.orange },
               ]}
             />
-            <p className="mt-3 rounded-[11px] border border-border bg-[#ffffff06] px-4 py-3 text-[13px] text-muted-foreground">
+            <p className="mt-3 rounded-[11px] border border-border bg-soft px-4 py-3 text-[13px] text-muted-foreground">
               <strong className="font-extrabold text-foreground">ROAS {data.fixed.roas}</strong> · Every ₱1 of ad spend returned ₱9.72 in
               attributed sales
             </p>
@@ -236,7 +236,7 @@ export function buildReports(view: BzView, data: BeetzeeData, period: BzPeriod, 
               <span className="min-w-0">
                 <span className="block truncate text-[13px] font-bold">{s.title}</span>
                 <span className="block text-[11px] text-subtle">{s.meta}</span>
-                <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[#271439]">
+                <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-accent">
                   <span className="bz-btn-primary block h-full rounded-full" style={{ width: `${s.completion}%` }} />
                 </span>
               </span>
@@ -281,7 +281,7 @@ export function buildReports(view: BzView, data: BeetzeeData, period: BzPeriod, 
                   </span>
                 </span>
               </div>
-              <span className="mt-1.5 block h-2 overflow-hidden rounded-full bg-[#271439]">
+              <span className="mt-1.5 block h-2 overflow-hidden rounded-full bg-accent">
                 <span className="block h-full rounded-full" style={{ width: `${(w.value / 50) * 100}%`, background: CHANNEL_COLORS[i] }} />
               </span>
             </li>
@@ -339,7 +339,7 @@ export function DetailedReports({
         <h2 id="bz-reports-title" className="text-[11px] font-bold uppercase tracking-[1.4px] text-subtle">
           Detailed reports
         </h2>
-        <Button variant="ghost" size="sm" onClick={toggleAll} className="text-[#e167ff] hover:bg-[#271439]">
+        <Button variant="ghost" size="sm" onClick={toggleAll} className="text-chart-2 hover:bg-accent">
           {allOpen ? 'Collapse all' : 'Expand all'}
         </Button>
       </div>
@@ -353,7 +353,7 @@ export function DetailedReports({
           const isOpen = open.includes(s.id);
           return (
             <AccordionItem key={s.id} value={s.id} className="bz-card overflow-hidden">
-              <AccordionTrigger className="px-5 py-4 hover:bg-[#ffffff05]" chevronClassName="text-subtle">
+              <AccordionTrigger className="px-5 py-4 hover:bg-soft" chevronClassName="text-subtle">
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] font-extrabold">{s.title}</span>
                   <span className="block text-xs text-muted-foreground">{s.subtitle}</span>

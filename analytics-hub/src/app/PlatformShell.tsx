@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PlatformContext, type PlatformContextValue } from './context';
+import { cn } from '@/lib/utils';
+import { readStorage, writeStorage } from '@/shared/useStoredState';
+import { PlatformContext, type ColorMode, type PlatformContextValue } from './context';
 import { PLATFORM_LIST, getPlatform } from './platforms';
 import { sessionStore, type PlatformId, type Session } from './session';
 
@@ -7,6 +9,12 @@ type Phase =
   | { kind: 'loading'; target: PlatformId }
   | { kind: 'ready'; session: Session; data: unknown; mountId: number; focusSwitcher: boolean }
   | { kind: 'error'; target: PlatformId };
+
+const MODE_KEY = 'pf-mode';
+
+function loadMode(): ColorMode {
+  return readStorage(MODE_KEY) === 'light' ? 'light' : 'dark';
+}
 
 function applyPageBackground(color: string) {
   document.documentElement.style.background = color;
@@ -20,6 +28,25 @@ function applyPageBackground(color: string) {
  */
 export function PlatformShell() {
   const [phase, setPhase] = useState<Phase>(() => ({ kind: 'loading', target: sessionStore.loadPlatform() }));
+  const [mode, setMode] = useState<ColorMode>(loadMode);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+
+  const toggleMode = useCallback(() => {
+    setMode((m) => {
+      const next = m === 'dark' ? 'light' : 'dark';
+      writeStorage(MODE_KEY, next);
+      return next;
+    });
+  }, []);
+
+  // Keep the page background (visible on overscroll) in step with the mode.
+  const shownPlatform = phase.kind === 'ready' ? phase.session.platform : phase.target;
+  useEffect(() => {
+    const def = getPlatform(shownPlatform);
+    applyPageBackground(mode === 'light' ? def.bgLight : def.bg);
+    document.documentElement.style.colorScheme = mode;
+  }, [mode, shownPlatform]);
   const mountCounter = useRef(0);
   const activeRef = useRef<PlatformId | null>(null);
 
@@ -28,7 +55,7 @@ export function PlatformShell() {
     activeRef.current = null;
     // Swapping to the loading phase unmounts the current dashboard entirely.
     setPhase({ kind: 'loading', target: id });
-    applyPageBackground(def.bg);
+    applyPageBackground(modeRef.current === 'light' ? def.bgLight : def.bg);
 
     let data: unknown;
     try {
@@ -68,9 +95,11 @@ export function PlatformShell() {
             platforms: PLATFORM_LIST,
             switchTo,
             focusSwitcherOnMount: phase.focusSwitcher,
+            mode,
+            toggleMode,
           }
         : null,
-    [phase, switchTo],
+    [phase, switchTo, mode, toggleMode],
   );
 
   if (phase.kind === 'ready') {
@@ -87,21 +116,21 @@ export function PlatformShell() {
   return (
     <div
       className="fixed inset-0 flex flex-col items-center justify-center gap-4 font-sans"
-      style={{ background: target.bg, fontFamily: 'Inter, Montserrat, system-ui, sans-serif' }}
+      style={{ background: mode === 'light' ? target.bgLight : target.bg, fontFamily: 'Inter, Montserrat, system-ui, sans-serif' }}
     >
       {phase.kind === 'loading' ? (
         <>
           <span
             aria-hidden
-            className="h-9 w-9 animate-spin rounded-full border-[3px] border-white/10 motion-reduce:animate-[spin_1.6s_linear_infinite]"
+            className={cn('h-9 w-9 animate-spin rounded-full border-[3px] motion-reduce:animate-[spin_1.6s_linear_infinite]', mode === 'light' ? 'border-black/10' : 'border-white/10')}
             style={{ borderTopColor: target.accent }}
           />
-          <p role="status" aria-live="polite" className="text-sm font-semibold text-white/80">
+          <p role="status" aria-live="polite" className={cn('text-sm font-semibold', mode === 'light' ? 'text-black/70' : 'text-white/80')}>
             Opening {target.name}…
           </p>
         </>
       ) : (
-        <div role="alert" className="flex flex-col items-center gap-3 text-center text-white/85">
+        <div role="alert" className={cn('flex flex-col items-center gap-3 text-center', mode === 'light' ? 'text-black/80' : 'text-white/85')}>
           <p className="text-sm font-semibold">We couldn’t open {target.name}.</p>
           <button
             type="button"

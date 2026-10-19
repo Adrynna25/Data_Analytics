@@ -12,6 +12,8 @@ export interface PlatformMeta {
   subtitle: string;
   accent: string;
   bg: string;
+  /** Page background in light mode. */
+  bgLight: string;
   /** Full lockup for the switcher trigger. */
   Logo: ComponentType<{ width?: number }>;
   /** Square icon for the switcher menu tile. */
@@ -33,6 +35,7 @@ export const PLATFORMS = {
     subtitle: 'Short-drama streaming analytics',
     accent: '#a457ff',
     bg: '#0f0617',
+    bgLight: '#faf7fe',
     Logo: BeetzeeLogo,
     Mark: BeetzeeMark,
     load: loadBeetzeeData,
@@ -44,6 +47,7 @@ export const PLATFORMS = {
     subtitle: 'Ferry booking analytics',
     accent: '#f97316',
     bg: '#0d0c0b',
+    bgLight: '#faf8f5',
     Logo: TripketLogo,
     Mark: TripketMark,
     load: loadTripketData,

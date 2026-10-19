@@ -11,7 +11,7 @@ function Section({ value, kicker, title, meta, children }: { value: string; kick
   return (
     <AccordionItem value={value} className="tp-card overflow-hidden">
       <AccordionTrigger
-        className="px-5 py-4 hover:bg-[#ffffff05] max-[560px]:flex-wrap"
+        className="px-5 py-4 hover:bg-soft max-[560px]:flex-wrap"
         chevronClassName="text-subtle"
       >
         <span className="min-w-0 flex-1">
@@ -76,7 +76,7 @@ export function OverviewSections({
               key={w.id}
               type="button"
               onClick={() => onNavigate(w.id)}
-              className="group flex items-center gap-3.5 rounded-xl border border-border bg-[#ffffff05] p-3.5 text-left transition-colors hover:border-primary/40 hover:bg-[#ffffff0a]"
+              className="group flex items-center gap-3.5 rounded-xl border border-border bg-soft p-3.5 text-left transition-colors hover:border-primary/40 hover:bg-soft-hover"
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-primary/15 text-brand2 ring-1 ring-inset ring-primary/25">
                 <Icon name={w.navIcon} size={19} />
@@ -106,7 +106,7 @@ export function OverviewSections({
               type="button"
               onClick={() => onOpenKpi(k)}
               aria-label={`${k.label}: ${k.value}. Open breakdown`}
-              className="rounded-xl border border-border bg-[#ffffff05] p-3.5 text-left transition-colors hover:border-primary/40"
+              className="rounded-xl border border-border bg-soft p-3.5 text-left transition-colors hover:border-primary/40"
             >
               <span className="block text-[11.5px] font-semibold text-subtle">{k.label}</span>
               <span className="mt-1 block font-display text-lg font-extrabold">{k.value}</span>

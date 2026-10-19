@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { BzKpi } from '../model';
 
-const STRIPES = ['#a457ff', '#e167ff', '#30f4a0', '#6a47ff'];
+const STRIPES = ['rgb(var(--chart-1))', 'rgb(var(--chart-2))', 'rgb(var(--chart-3))', 'rgb(var(--chart-5))'];
 
 export function BreakdownCard({ kpi, onClose }: { kpi: BzKpi; onClose: () => void }) {
   const b = kpi.breakdown;
@@ -16,7 +16,7 @@ export function BreakdownCard({ kpi, onClose }: { kpi: BzKpi; onClose: () => voi
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">{b.subtitle}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={onClose} className="shrink-0 border-[#4e3a66]">
+        <Button variant="outline" size="sm" onClick={onClose} className="shrink-0 border-border-strong">
           <X strokeWidth={2} /> Close
         </Button>
       </div>
@@ -24,18 +24,15 @@ export function BreakdownCard({ kpi, onClose }: { kpi: BzKpi; onClose: () => voi
       <div
         className={cn(
           'mt-4 grid gap-3',
-          b.metrics.length === 2
-            ? 'grid-cols-2 max-[480px]:grid-cols-1'
-            : b.metrics.length === 3
-              ? 'grid-cols-3 max-[700px]:grid-cols-1'
-              : 'grid-cols-4 max-[1000px]:grid-cols-2',
+          b.metrics.length === 3 ? 'grid-cols-3 max-[700px]:grid-cols-1' : 'grid-cols-2 max-[480px]:grid-cols-1',
         )}
       >
         {b.metrics.map((m, i) => (
-          <div key={m.label} className="relative overflow-hidden rounded-[11px] border border-border bg-[#ffffff06] py-3 pl-4 pr-3">
+          <div key={m.label} className="relative overflow-hidden rounded-[11px] border border-border bg-soft py-3 pl-4 pr-3">
             <span aria-hidden className="absolute inset-y-0 left-0 w-[3px]" style={{ background: STRIPES[i % STRIPES.length] }} />
             <p className="text-[11px] font-semibold text-subtle">{m.label}</p>
             <p className="mt-1 text-lg font-extrabold">{m.value}</p>
+            {m.note && <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{m.note}</p>}
           </div>
         ))}
       </div>

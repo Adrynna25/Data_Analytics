@@ -51,7 +51,7 @@ export function PlatformSwitcher({ logoWidth, className }: { logoWidth?: number;
         style={{ '--sw-accent': active.accent } as CSSProperties}
         className={cn(
           'group inline-flex max-w-full items-center gap-2 rounded-[10px] border border-transparent px-2 py-1.5 text-left outline-none transition-colors',
-          'hover:border-[#ffffff1a] hover:bg-[#ffffff0d] data-[state=open]:border-[#ffffff1a] data-[state=open]:bg-[#ffffff0d]',
+          'hover:border-[var(--sw-hover-border)] hover:bg-[var(--sw-hover)] data-[state=open]:border-[var(--sw-hover-border)] data-[state=open]:bg-[var(--sw-hover)]',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sw-accent)]',
           className,
         )}
@@ -62,7 +62,7 @@ export function PlatformSwitcher({ logoWidth, className }: { logoWidth?: number;
         <ChevronRight
           aria-hidden
           strokeWidth={1.8}
-          className="h-4 w-4 shrink-0 rotate-90 text-[#8d8494] transition-transform duration-200 group-data-[state=open]:-rotate-90 group-data-[state=open]:text-[var(--sw-accent)]"
+          className="h-4 w-4 shrink-0 rotate-90 text-[var(--sw-muted)] transition-transform duration-200 group-data-[state=open]:-rotate-90 group-data-[state=open]:text-[var(--sw-accent)]"
         />
       </DropdownMenuTrigger>
 
@@ -75,9 +75,9 @@ export function PlatformSwitcher({ logoWidth, className }: { logoWidth?: number;
           // Radix then dismisses and returns focus to the trigger.
           e.stopPropagation();
         }}
-        className="w-[288px] max-w-[calc(100vw-32px)] data-[state=closed]:animate-none rounded-xl border-[#ffffff1f] bg-[#17131b] p-1.5 text-[#f6f3f8] shadow-[0_18px_50px_#000a]"
+        className="w-[288px] max-w-[calc(100vw-32px)] data-[state=closed]:animate-none rounded-xl border-[var(--sw-border)] bg-[var(--sw-bg)] p-1.5 text-[var(--sw-text)] shadow-[var(--sw-shadow)]"
       >
-        <DropdownMenuLabel className="px-2.5 pb-2 pt-2 text-[10.5px] font-bold uppercase tracking-[1.2px] text-[#8d8494]">
+        <DropdownMenuLabel className="px-2.5 pb-2 pt-2 text-[10.5px] font-bold uppercase tracking-[1.2px] text-[var(--sw-muted)]">
           Switch platform
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup
@@ -97,14 +97,14 @@ export function PlatformSwitcher({ logoWidth, className }: { logoWidth?: number;
                 ref={isActive ? activeItemRef : undefined}
                 style={{ '--row-accent': p.accent, '--row-active': tint(p.accent, 16) } as CSSProperties}
                 className={cn(
-                  'my-0.5 gap-3 rounded-[9px] px-2.5 py-2 pl-2.5 focus:bg-[#ffffff0f]',
+                  'my-0.5 gap-3 rounded-[9px] px-2.5 py-2 pl-2.5 focus:bg-[var(--sw-row-focus)]',
                   isActive && 'bg-[var(--row-active)] focus:bg-[var(--row-active)]',
                 )}
               >
                 <span
                   className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[9px]"
                   style={{
-                    background: tint(p.accent, 20, '#0b090d'),
+                    background: tint(p.accent, 20, 'var(--sw-tile-base)'),
                     boxShadow: `inset 0 0 0 1px ${tint(p.accent, 45)}`,
                   }}
                 >
@@ -112,14 +112,14 @@ export function PlatformSwitcher({ logoWidth, className }: { logoWidth?: number;
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-bold">{p.name}</span>
-                  <span className="block truncate text-[11px] text-[#8d8494]">{p.subtitle}</span>
+                  <span className="block truncate text-[11px] text-[var(--sw-muted)]">{p.subtitle}</span>
                 </span>
                 {isActive && <Check aria-hidden strokeWidth={2.2} className="h-4 w-4 shrink-0 text-[var(--row-accent)]" />}
               </DropdownMenuRadioItem>
             );
           })}
         </DropdownMenuRadioGroup>
-        <p className="mt-1 border-t border-[#ffffff14] px-2.5 pb-1.5 pt-2.5 text-[10.5px] leading-snug text-[#6f6776]">
+        <p className="mt-1 border-t border-[var(--sw-divider)] px-2.5 pb-1.5 pt-2.5 text-[10.5px] leading-snug text-[var(--sw-footer)]">
           Each platform opens with its own session and data.
         </p>
       </DropdownMenuContent>

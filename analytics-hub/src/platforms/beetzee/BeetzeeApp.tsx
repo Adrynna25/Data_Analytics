@@ -1,19 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Bell, Calendar, ChevronRight, Copy } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Bell, Calendar, ChevronDown, ChevronRight, Download, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { PlatformSwitcher } from '@/app/PlatformSwitcher';
+import { ThemeToggle } from '@/app/ThemeToggle';
+import { usePlatform } from '@/app/context';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Toaster } from '@/components/ui/sonner';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
+import { DateRangeForm, type DateRange } from '@/shared/DateRangeForm';
+import { formatDateRange } from '@/shared/format';
 import { Icon } from '@/shared/Icon';
 import { PortalContainerContext } from '@/shared/portal';
 import { useEscape } from '@/shared/useEscape';
-import { useStoredState } from '@/shared/useStoredState';
+import { readStorage, useStoredState, writeStorage } from '@/shared/useStoredState';
 import { BZ_VIEWS, isBzPeriod, isBzView, type BeetzeeData, type BzPeriod, type BzView } from './data';
 import { buildKpis } from './model';
 import { BreakdownCard } from './components/BreakdownCard';
-import { CampaignPicker } from './components/CampaignPicker';
+import { CustomizePanel } from './components/CustomizePanel';
 import { KpiTile } from './components/KpiTile';
 import { DetailedReports, buildReports } from './components/Reports';
 
@@ -35,55 +41,139 @@ const PAGES: Record<BzView, { eyebrow: string; title: string; description: strin
   },
 };
 
-const GRID_COLS: Record<BzView, string> = {
-  core: 'grid-cols-4 max-[1180px]:grid-cols-3',
-  marketing: 'grid-cols-3',
-  app: 'grid-cols-5 max-[1280px]:grid-cols-3',
-};
+interface FilterOption {
+  id: string;
+  label: string;
+}
+
+/** Report filter options per view. Marketing filters by campaign; Application & Users by platform. */
+function reportFilters(data: BeetzeeData): Partial<Record<BzView, FilterOption[]>> {
+  return {
+    marketing: [
+      { id: 'all', label: 'All campaigns & channels' },
+      ...data.campaigns.map((c) => ({ id: c.id, label: `${c.name} · ${c.channel}` })),
+    ],
+    app: [
+      { id: 'all', label: 'All platforms' },
+      ...data.platformSplit.map((p) => ({ id: p.label, label: p.label })),
+    ],
+  };
+}
+
+const hiddenKey = (view: BzView) => `bz-kpis-hidden-${view}`;
+
+/** Hidden KPI ids for a view (everything is shown by default). */
+function loadHidden(view: BzView): string[] {
+  try {
+    const ids = JSON.parse(readStorage(hiddenKey(view)) ?? '[]');
+    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 export function BeetzeeApp({ data }: { data: BeetzeeData }) {
+  const { mode } = usePlatform();
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null);
   const [view, setView] = useStoredState<BzView>('bz-view', 'core', isBzView);
   const [period, setPeriod] = useStoredState<BzPeriod>('bz-period', 'monthly', isBzPeriod);
-  const [campaignId, setCampaignId] = useState('all');
+  const [range, setRange] = useState<DateRange>(() => ({ from: data.periods[period].from, to: data.periods[period].to }));
+  const [dateOpen, setDateOpen] = useState(false);
+  const [filters, setFilters] = useState<Partial<Record<BzView, string>>>({});
   const [selectedKpi, setSelectedKpi] = useState<string | null>(null);
   const [openReports, setOpenReports] = useState<string[]>([]);
+  const [customizing, setCustomizing] = useState(false);
+  const [hidden, setHidden] = useState<Record<BzView, string[]>>(() => ({
+    core: loadHidden('core'),
+    marketing: loadHidden('marketing'),
+    app: loadHidden('app'),
+  }));
+  // Latest selection, so quick successive clicks each build on the previous one.
+  const hiddenRef = useRef(hidden);
 
   const page = PAGES[view];
   const p = data.periods[period];
-  const kpis = useMemo(() => buildKpis(data, view, period, campaignId), [data, view, period, campaignId]);
+  const rangeLabel = formatDateRange(range.from, range.to);
+  const isPresetRange = range.from === p.from && range.to === p.to;
+  const comparison = isPresetRange ? p.comparison : 'vs. previous period';
+  const filterOptions = useMemo(() => reportFilters(data)[view], [data, view]);
+  const filterId = filters[view] ?? 'all';
+  const filterOption = filterOptions?.find((o) => o.id === filterId) ?? filterOptions?.[0];
+  const campaignId = view === 'marketing' ? filterId : 'all';
+  const platformLabel = view === 'app' && filterId !== 'all' ? filterOption?.label : undefined;
+  const kpis = useMemo(
+    () => buildKpis(data, view, period, campaignId, rangeLabel, platformLabel),
+    [data, view, period, campaignId, rangeLabel, platformLabel],
+  );
   const reports = useMemo(() => buildReports(view, data, period, campaignId), [view, data, period, campaignId]);
-  const breakdownKpi = kpis.find((k) => k.id === selectedKpi) ?? null;
+  const visibleKpis = kpis.filter((k) => !hidden[view].includes(k.id));
+  const breakdownKpi = visibleKpis.find((k) => k.id === selectedKpi) ?? null;
 
   useEffect(() => () => void toast.dismiss(), []);
 
-  // The campaign menu is a Radix layer and consumes its own Escape first.
+  // The date popover is a Radix layer and consumes its own Escape first.
   useEscape(() => {
     if (selectedKpi) setSelectedKpi(null);
+    else if (customizing) setCustomizing(false);
   });
+
+  const saveHidden = (ids: string[]) => {
+    hiddenRef.current = { ...hiddenRef.current, [view]: ids };
+    setHidden(hiddenRef.current);
+    writeStorage(hiddenKey(view), ids.length ? JSON.stringify(ids) : null);
+  };
+
+  const toggleKpi = (id: string) => {
+    const current = hiddenRef.current[view];
+    if (current.includes(id)) {
+      saveHidden(current.filter((x) => x !== id));
+    } else if (kpis.filter((k) => !current.includes(k.id)).length === 1) {
+      toast('Keep at least one KPI on the page');
+    } else {
+      saveHidden([...current, id]);
+      if (selectedKpi === id) setSelectedKpi(null);
+    }
+  };
 
   const navigate = (v: BzView) => {
     setView(v);
     setSelectedKpi(null);
+    setCustomizing(false);
     window.scrollTo({ top: 0 });
   };
 
-  const copySummary = async () => {
-    const lines = [
-      `${page.title} — ${p.range}`,
-      ...kpis.map((k) => `${k.label}: ${k.value} (${k.trend >= 0 ? '+' : '−'}${Math.abs(k.trend).toFixed(1)}% ${p.comparison})`),
+  const changePeriod = (next: BzPeriod) => {
+    setPeriod(next);
+    setRange({ from: data.periods[next].from, to: data.periods[next].to });
+  };
+
+  /** Downloads the KPIs on screen as a CSV for the selected range. */
+  const exportReport = () => {
+    const cell = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const rows = [
+      ['Report', page.title],
+      ['Range', rangeLabel],
+      ...(filterOption ? [['Report filter', filterOption.label]] : []),
+      [],
+      ['KPI', 'Value', 'Change', 'Comparison'],
+      ...visibleKpis.map((k) => [k.label, k.value, `${k.trend >= 0 ? '+' : '-'}${Math.abs(k.trend).toFixed(1)}%`, comparison]),
     ];
+    const csv = rows.map((r) => r.map(cell).join(',')).join('\n');
     try {
-      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
-      await navigator.clipboard.writeText(lines.join('\n'));
-      toast('Summary copied to clipboard');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `beetzee-${view}-${range.from}_${range.to}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast(`${page.title} report is ready`);
     } catch {
-      toast("Copy isn't available here. Select the figures to copy them.");
+      toast("Export isn't available here.");
     }
   };
 
   return (
-    <div ref={setRootEl} className="theme-beetzee bz-app-bg relative min-h-screen bg-background">
+    <div ref={setRootEl} className={cn('theme-beetzee bz-app-bg relative min-h-screen bg-background', mode === 'light' && 'light')}>
       <PortalContainerContext.Provider value={rootEl}>
         <div className="flex">
           {/* Sidebar (desktop) */}
@@ -106,16 +196,16 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
                       on ? 'bz-nav-active text-foreground' : 'text-muted-foreground hover:bg-[var(--bz-nav-soft)] hover:text-foreground',
                     )}
                   >
-                    <Icon name={v.icon} size={18} className={on ? 'text-[#e167ff]' : undefined} />
+                    <Icon name={v.icon} size={18} className={on ? 'text-chart-2' : undefined} />
                     <span className="flex-1">{v.nav}</span>
-                    {on && <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#e167ff] shadow-[0_0_10px_2px_#e167ffaa]" />}
+                    {on && <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-chart-2 shadow-[0_0_10px_2px_#e167ffaa]" />}
                   </button>
                 );
               })}
             </nav>
 
             <div className="mt-auto flex flex-col gap-3 pt-6">
-              <div className="rounded-[13px] border border-border bg-[#ffffff05] p-3.5">
+              <div className="rounded-[13px] border border-border bg-soft p-3.5">
                 <p className="text-[10.5px] font-bold uppercase tracking-[1.2px] text-subtle">Data sources</p>
                 <ul className="mt-2.5 grid gap-2">
                   {['Ad platforms', 'App analytics', 'Payment records'].map((s) => (
@@ -141,7 +231,7 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
 
           <div className="min-w-0 flex-1">
             {/* Top bar */}
-            <header className="sticky top-0 z-30 flex h-[66px] items-center justify-between gap-3 border-b border-border bg-[#0f0617d9] px-7 backdrop-blur-md max-[800px]:px-4">
+            <header className="sticky top-0 z-30 flex h-[66px] items-center justify-between gap-3 border-b border-border bg-[var(--chrome-header)] px-7 backdrop-blur-md max-[800px]:px-4">
               <nav aria-label="Breadcrumb" className="min-w-0 max-[800px]:hidden">
                 <ol className="flex items-center gap-2 text-[13px]">
                   <li className="text-subtle">Beetzee Play</li>
@@ -155,9 +245,10 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
                 <PlatformSwitcher logoWidth={112} className="-ml-2" />
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <span className="rounded-full border border-dashed border-[#4e3a66] px-2.5 py-1 text-[11px] font-semibold text-muted-foreground max-[480px]:hidden">
+                <span className="rounded-full border border-dashed border-border-strong px-2.5 py-1 text-[11px] font-semibold text-muted-foreground max-[480px]:hidden">
                   Sample data
                 </span>
+                <ThemeToggle />
                 <Button
                   variant="outline"
                   size="icon"
@@ -166,19 +257,42 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
                   className="relative border-border text-muted-foreground"
                 >
                   <Bell strokeWidth={1.8} />
-                  <span aria-hidden className="absolute right-2 top-2 h-2 w-2 rounded-full bg-danger ring-2 ring-[#0f0617]" />
+                  <span aria-hidden className="absolute right-2 top-2 h-2 w-2 rounded-full bg-danger ring-2 ring-background" />
                 </Button>
-                <span className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-[#ffffff06] px-3 text-xs font-semibold max-[560px]:hidden">
-                  <Calendar aria-hidden strokeWidth={1.8} className="h-4 w-4 text-[#e167ff]" />
-                  {p.range}
-                </span>
+                <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={`Date range: ${rangeLabel}. Change`}
+                      className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-soft px-3 text-xs font-semibold transition-colors hover:border-border-strong data-[state=open]:border-border-strong"
+                    >
+                      <Calendar aria-hidden strokeWidth={1.8} className="h-4 w-4 text-chart-2" />
+                      <span className="max-[560px]:hidden">{rangeLabel}</span>
+                      <ChevronDown aria-hidden strokeWidth={1.8} className="h-3.5 w-3.5 text-subtle max-[560px]:hidden" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" sideOffset={8} className="w-[300px] max-w-[calc(100vw-32px)] rounded-[13px] border-border-strong bg-popover">
+                    {dateOpen && (
+                      <DateRangeForm
+                        idPrefix="bz"
+                        initial={range}
+                        submitClassName="bz-btn-primary mt-3 w-full hover:opacity-90"
+                        onApply={(r) => {
+                          setRange(r);
+                          setDateOpen(false);
+                          toast(`Reporting range set to ${formatDateRange(r.from, r.to)}`);
+                        }}
+                      />
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
             </header>
 
             {/* Mobile tabs */}
             <nav
               aria-label="Workspace"
-              className="sticky top-[66px] z-20 hidden gap-1.5 overflow-x-auto border-b border-border bg-[#0f0617e6] px-4 py-2 backdrop-blur-md max-[800px]:flex"
+              className="sticky top-[66px] z-20 hidden gap-1.5 overflow-x-auto border-b border-border bg-[var(--chrome-header)] px-4 py-2 backdrop-blur-md max-[800px]:flex"
             >
               {BZ_VIEWS.map((v) => {
                 const on = v.id === view;
@@ -203,45 +317,82 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
             <main className="mx-auto max-w-[1440px] px-7 py-7 max-[800px]:px-4 max-[800px]:py-5">
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div className="min-w-0 max-w-[720px]">
-                  <p className="text-[11px] font-bold uppercase tracking-[1.4px] text-[#e167ff]">{page.eyebrow}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[1.4px] text-chart-2">{page.eyebrow}</p>
                   <h1 className="mt-1.5 text-[26px] font-extrabold leading-tight tracking-tight max-[560px]:text-[22px]">{page.title}</h1>
                   <p className="mt-1 text-[13.5px] text-muted-foreground">{page.description}</p>
                 </div>
-                <Button onClick={copySummary} className="bz-btn-primary rounded-[11px] hover:opacity-90">
-                  <Copy strokeWidth={1.8} /> Copy summary
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    aria-expanded={customizing}
+                    onClick={() => setCustomizing((c) => !c)}
+                    className="rounded-[11px] border-border-strong hover:bg-accent"
+                  >
+                    <SlidersHorizontal strokeWidth={1.8} /> Customize KPIs
+                  </Button>
+                  <Button onClick={exportReport} className="bz-btn-primary rounded-[11px] hover:opacity-90">
+                    <Download strokeWidth={1.8} /> Export report
+                  </Button>
+                </div>
               </div>
 
               {/* Filters */}
-              <div className="bz-card mb-5 mt-6 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[1.2px] text-subtle">Reporting period</p>
-                    <p className="text-[13px] font-bold">{p.range}</p>
+              <div className="mb-5 mt-6 flex flex-wrap items-center justify-between gap-3">
+                <ToggleGroup
+                  type="single"
+                  value={period}
+                  onValueChange={(v) => isBzPeriod(v) && changePeriod(v)}
+                  aria-label="Reporting period"
+                  className="border-border-strong bg-soft"
+                >
+                  {(['daily', 'weekly', 'monthly'] as const).map((id) => (
+                    <ToggleGroupItem key={id} value={id} className="data-[state=on]:bg-[linear-gradient(135deg,#a457ff,#c04cfd)]">
+                      {data.periods[id].label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+
+                {filterOptions && (
+                  <div className="flex items-center gap-2.5">
+                    <span id="bz-filter-label" className="text-[10.5px] font-bold uppercase tracking-[1.2px] text-subtle">
+                      Report filter
+                    </span>
+                    <Select value={filterId} onValueChange={(v) => setFilters((f) => ({ ...f, [view]: v }))}>
+                      <SelectTrigger
+                        aria-labelledby="bz-filter-label"
+                        className="h-9 w-[250px] rounded-[11px] border-border-strong bg-soft text-[13px] font-semibold max-[420px]:w-[190px]"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-[11px] border-border-strong bg-popover">
+                        {filterOptions.map((o) => (
+                          <SelectItem key={o.id} value={o.id} className="focus:bg-accent">
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <ToggleGroup
-                    type="single"
-                    value={period}
-                    onValueChange={(v) => isBzPeriod(v) && setPeriod(v)}
-                    aria-label="Reporting period"
-                    className="border-[#4e3a66] bg-[#ffffff06]"
-                  >
-                    {(['daily', 'monthly', 'yearly'] as const).map((id) => (
-                      <ToggleGroupItem key={id} value={id} className="data-[state=on]:bg-[linear-gradient(135deg,#a457ff,#c04cfd)]">
-                        {data.periods[id].label}
-                      </ToggleGroupItem>
-                    ))}
-                  </ToggleGroup>
-                </div>
-                {view === 'marketing' && <CampaignPicker data={data} period={period} value={campaignId} onChange={setCampaignId} />}
+                )}
               </div>
 
-              <div className={cn('grid gap-3.5 max-[800px]:grid-cols-2 max-[800px]:gap-2.5', GRID_COLS[view])}>
-                {kpis.map((k) => (
+              {customizing && (
+                <CustomizePanel
+                  kpis={kpis}
+                  hidden={hidden[view]}
+                  onToggle={toggleKpi}
+                  onReset={() => saveHidden([])}
+                  onDone={() => setCustomizing(false)}
+                />
+              )}
+
+              {/* Columns follow the content width (not the window), so tiles never get cramped. */}
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3.5 max-[800px]:grid-cols-2 max-[800px]:gap-2.5">
+                {visibleKpis.map((k) => (
                   <KpiTile
                     key={k.id}
                     kpi={k}
-                    comparison={p.comparison}
+                    comparison={comparison}
                     selected={selectedKpi === k.id}
                     onToggle={() => setSelectedKpi((s) => (s === k.id ? null : k.id))}
                   />
@@ -254,7 +405,7 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
             </main>
           </div>
         </div>
-        <Toaster />
+        <Toaster theme={mode} />
       </PortalContainerContext.Provider>
     </div>
   );

@@ -5,7 +5,7 @@
 import { sessionStore } from '@/app/session';
 
 export type BzView = 'core' | 'marketing' | 'app';
-export type BzPeriod = 'daily' | 'monthly' | 'yearly';
+export type BzPeriod = 'daily' | 'weekly' | 'monthly';
 
 /** A figure keeps the numeric value (for charts) and the exact display string. */
 export interface Fig {
@@ -17,6 +17,9 @@ export interface PeriodInfo {
   id: BzPeriod;
   label: string;
   range: string;
+  /** ISO dates of the preset reporting range. */
+  from: string;
+  to: string;
   comparison: string;
 }
 
@@ -107,13 +110,13 @@ export interface BeetzeeData {
 }
 
 const f = (n: number, label: string): Fig => ({ n, label });
-const per = (d: Fig, m: Fig, y: Fig): Record<BzPeriod, Fig> => ({ daily: d, monthly: m, yearly: y });
+const per = (d: Fig, w: Fig, m: Fig): Record<BzPeriod, Fig> => ({ daily: d, weekly: w, monthly: m });
 
 export const BEETZEE_DATA: BeetzeeData = {
   periods: {
-    daily: { id: 'daily', label: 'Daily', range: 'May 31, 2025', comparison: 'vs. previous day' },
-    monthly: { id: 'monthly', label: 'Monthly', range: 'May 1 – May 31, 2025', comparison: 'vs. previous month' },
-    yearly: { id: 'yearly', label: 'Yearly', range: 'Jan 1 – Dec 31, 2025', comparison: 'vs. previous year' },
+    daily: { id: 'daily', label: 'Daily', range: 'May 31, 2025', from: '2025-05-31', to: '2025-05-31', comparison: 'vs. previous day' },
+    weekly: { id: 'weekly', label: 'Weekly', range: 'May 25 – May 31, 2025', from: '2025-05-25', to: '2025-05-31', comparison: 'vs. previous week' },
+    monthly: { id: 'monthly', label: 'Monthly', range: 'May 1 – May 31, 2025', from: '2025-05-01', to: '2025-05-31', comparison: 'vs. previous month' },
   },
   figures: {
     daily: {
@@ -133,6 +136,23 @@ export const BEETZEE_DATA: BeetzeeData = {
       runtimeHrs: '419 hrs',
       peak: '9.2K (8 PM)',
     },
+    weekly: {
+      budget: f(147_000, '₱147K'),
+      spend: f(112_000, '₱112K'),
+      impressions: f(1_409_000, '1.41M'),
+      clicks: f(54_100, '54.1K'),
+      activeUsers: f(312_400, '312.4K'),
+      attributedSales: f(1_088_000, '₱1.09M'),
+      grossSales: f(343_200, '₱343.2K'),
+      signups: f(22_300, '22.3K'),
+      purchases: f(4_109, '4.1K'),
+      paying: f(3_906, '3.9K'),
+      rewardCoin: f(14_090, '₱14.1K'),
+      remaining: f(35_000, '₱35.0K'),
+      watchedHrs: '2,163 hrs',
+      runtimeHrs: '2,935 hrs',
+      peak: '238K (May 28, 2025)',
+    },
     monthly: {
       budget: f(650_000, '₱650K'),
       spend: f(496_000, '₱496K'),
@@ -149,23 +169,6 @@ export const BEETZEE_DATA: BeetzeeData = {
       watchedHrs: '9,568 hrs',
       runtimeHrs: '13,000 hrs',
       peak: '238K (May 28, 2025)',
-    },
-    yearly: {
-      budget: f(7_800_000, '₱7.80M'),
-      spend: f(5_950_000, '₱5.95M'),
-      impressions: f(74_880_000, '74.88M'),
-      clicks: f(2_880_000, '2.88M'),
-      activeUsers: f(1_420_000, '1.42M'),
-      attributedSales: f(57_840_000, '₱57.84M'),
-      grossSales: f(18_250_000, '₱18.25M'),
-      signups: f(1_180_000, '1.18M'),
-      purchases: f(218_400, '218.4K'),
-      paying: f(208_100, '208.1K'),
-      rewardCoin: f(748_800, '₱748.8K'),
-      remaining: f(1_850_000, '₱1.85M'),
-      watchedHrs: '114.8K hrs',
-      runtimeHrs: '156K hrs',
-      peak: '7.1M (October 2025)',
     },
   },
   fixed: {
@@ -194,9 +197,9 @@ export const BEETZEE_DATA: BeetzeeData = {
       share: 33.5,
       roas: '10.4×',
       ctr: '4.20%',
-      spend: per(f(5_400, '₱5.4K'), f(166_000, '₱166K'), f(1_990_000, '₱1.99M')),
-      impressions: per(f(70_300, '70.3K'), f(2_180_000, '2.18M'), f(26_160_000, '26.16M')),
-      clicks: per(f(3_000, '3.0K'), f(91_600, '91.6K'), f(1_100_000, '1.10M')),
+      spend: per(f(5_400, '₱5.4K'), f(37_500, '₱37.5K'), f(166_000, '₱166K')),
+      impressions: per(f(70_300, '70.3K'), f(492_300, '492.3K'), f(2_180_000, '2.18M')),
+      clicks: per(f(3_000, '3.0K'), f(20_700, '20.7K'), f(91_600, '91.6K')),
     },
     {
       id: 'love-stories',
@@ -206,9 +209,9 @@ export const BEETZEE_DATA: BeetzeeData = {
       share: 25.0,
       roas: '9.9×',
       ctr: '3.70%',
-      spend: per(f(4_000, '₱4.0K'), f(124_000, '₱124K'), f(1_490_000, '₱1.49M')),
-      impressions: per(f(50_300, '50.3K'), f(1_560_000, '1.56M'), f(18_720_000, '18.72M')),
-      clicks: per(f(1_900, '1.9K'), f(57_700, '57.7K'), f(692_400, '692.4K')),
+      spend: per(f(4_000, '₱4.0K'), f(28_000, '₱28.0K'), f(124_000, '₱124K')),
+      impressions: per(f(50_300, '50.3K'), f(352_300, '352.3K'), f(1_560_000, '1.56M')),
+      clicks: per(f(1_900, '1.9K'), f(13_000, '13.0K'), f(57_700, '57.7K')),
     },
     {
       id: 'new-user-acquisition',
@@ -218,9 +221,9 @@ export const BEETZEE_DATA: BeetzeeData = {
       share: 22.6,
       roas: '9.1×',
       ctr: '3.60%',
-      spend: per(f(3_600, '₱3.6K'), f(112_000, '₱112K'), f(1_340_000, '₱1.34M')),
-      impressions: per(f(46_100, '46.1K'), f(1_430_000, '1.43M'), f(17_160_000, '17.16M')),
-      clicks: per(f(1_700, '1.7K'), f(51_500, '51.5K'), f(618_000, '618K')),
+      spend: per(f(3_600, '₱3.6K'), f(25_300, '₱25.3K'), f(112_000, '₱112K')),
+      impressions: per(f(46_100, '46.1K'), f(322_900, '322.9K'), f(1_430_000, '1.43M')),
+      clicks: per(f(1_700, '1.7K'), f(11_600, '11.6K'), f(51_500, '51.5K')),
     },
     {
       id: 'viewer-retargeting',
@@ -230,9 +233,9 @@ export const BEETZEE_DATA: BeetzeeData = {
       share: 18.9,
       roas: '8.7×',
       ctr: '3.63%',
-      spend: per(f(3_000, '₱3.0K'), f(94_000, '₱94K'), f(1_130_000, '₱1.13M')),
-      impressions: per(f(34_500, '34.5K'), f(1_070_000, '1.07M'), f(12_840_000, '12.84M')),
-      clicks: per(f(1_300, '1.3K'), f(38_800, '38.8K'), f(465_600, '465.6K')),
+      spend: per(f(3_000, '₱3.0K'), f(21_200, '₱21.2K'), f(94_000, '₱94K')),
+      impressions: per(f(34_500, '34.5K'), f(241_600, '241.6K'), f(1_070_000, '1.07M')),
+      clicks: per(f(1_300, '1.3K'), f(8_800, '8.8K'), f(38_800, '38.8K')),
     },
   ],
   channelSplit: [
@@ -272,7 +275,7 @@ export const BZ_VIEWS: { id: BzView; nav: string; icon: 'grid' | 'megaphone' | '
 ];
 
 export const isBzView = (v: string): v is BzView => v === 'core' || v === 'marketing' || v === 'app';
-export const isBzPeriod = (v: string): v is BzPeriod => v === 'daily' || v === 'monthly' || v === 'yearly';
+export const isBzPeriod = (v: string): v is BzPeriod => v === 'daily' || v === 'weekly' || v === 'monthly';
 
 /** Mock API: resolves with the dataset only while `token` is the live session token. */
 export function loadBeetzeeData(token: string): Promise<BeetzeeData> {

@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Toaster } from '@/components/ui/sonner';
+import { usePlatform } from '@/app/context';
+import { cn } from '@/lib/utils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { formatDateRange } from '@/shared/format';
 import { PortalContainerContext } from '@/shared/portal';
@@ -40,6 +42,7 @@ function loadSelection(def: ViewDef): string[] {
 const isPeriod = (v: string): v is Period => v === 'daily' || v === 'weekly' || v === 'monthly';
 
 export function TripketApp({ data }: { data: TripketData }) {
+  const { mode } = usePlatform();
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null);
   const [view, setView] = useState<TripketView>('overview');
   const [period, setPeriod] = useState<Period>(DEFAULT_PERIOD);
@@ -53,6 +56,8 @@ export function TripketApp({ data }: { data: TripketData }) {
     marketing: loadSelection(data.views.marketing),
     operators: loadSelection(data.views.operators),
   }));
+  // Latest selection, so quick successive clicks each build on the previous one.
+  const selectionRef = useRef(selection);
   const [scopes, setScopes] = useState<Partial<Record<TripketView, string>>>({});
 
   const def = data.views[view];
@@ -84,38 +89,41 @@ export function TripketApp({ data }: { data: TripketData }) {
   };
 
   const saveSelection = (ids: string[]) => {
-    setSelection((s) => ({ ...s, [view]: ids }));
+    selectionRef.current = { ...selectionRef.current, [view]: ids };
+    setSelection(selectionRef.current);
     writeStorage(kpiStorageKey(view), JSON.stringify(ids));
   };
 
   const toggleKpi = (id: string) => {
-    if (selected.includes(id)) {
-      if (selected.length === 1) {
+    const current = selectionRef.current[view];
+    if (current.includes(id)) {
+      if (current.length === 1) {
         toast('Keep at least one KPI on the page');
         return;
       }
-      saveSelection(selected.filter((x) => x !== id));
+      saveSelection(current.filter((x) => x !== id));
     } else {
-      saveSelection(def.kpis.map((k) => k.id).filter((k) => k === id || selected.includes(k)));
+      saveSelection(def.kpis.map((k) => k.id).filter((k) => k === id || current.includes(k)));
     }
   };
 
   const resetSelection = () => {
-    setSelection((s) => ({ ...s, [view]: defaultSelection(def) }));
+    selectionRef.current = { ...selectionRef.current, [view]: defaultSelection(def) };
+    setSelection(selectionRef.current);
     writeStorage(kpiStorageKey(view), null);
   };
 
   const views = VIEW_ORDER.map((v) => data.views[v]);
 
   return (
-    <div ref={setRootEl} className="theme-tripket tp-app-bg relative min-h-screen bg-background">
+    <div ref={setRootEl} className={cn('theme-tripket tp-app-bg relative min-h-screen bg-background', mode === 'light' && 'light')}>
       <PortalContainerContext.Provider value={rootEl}>
-        <aside className="fixed inset-y-0 left-0 z-40 w-[248px] overflow-y-auto border-r border-border bg-[#0a0908f5] backdrop-blur-[18px] max-[780px]:hidden">
+        <aside className="fixed inset-y-0 left-0 z-40 w-[248px] overflow-y-auto border-r border-border bg-[var(--chrome)] backdrop-blur-[18px] max-[780px]:hidden">
           <SidebarContent views={views} active={view} onNavigate={navigate} />
         </aside>
 
         <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <SheetContent side="left" className="w-[270px] max-w-[85vw] overflow-y-auto border-r border-border bg-[#0a0908f5] p-0 backdrop-blur-[18px]">
+          <SheetContent side="left" className="w-[270px] max-w-[85vw] overflow-y-auto border-r border-border bg-[var(--chrome)] p-0 backdrop-blur-[18px]">
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             <SheetDescription className="sr-only">Tripket workspaces and platform switcher</SheetDescription>
             <SidebarContent views={views} active={view} onNavigate={navigate} />
@@ -163,7 +171,7 @@ export function TripketApp({ data }: { data: TripketData }) {
                 value={period}
                 onValueChange={(v) => isPeriod(v) && changePeriod(v)}
                 aria-label="Reporting period"
-                className="bg-[#ffffff08]"
+                className="bg-soft"
               >
                 {(['daily', 'weekly', 'monthly'] as const).map((p) => (
                   <ToggleGroupItem key={p} value={p}>
@@ -233,7 +241,7 @@ export function TripketApp({ data }: { data: TripketData }) {
           unit={preset.unit}
           onClose={() => setModalKpi(null)}
         />
-        <Toaster />
+        <Toaster theme={mode} />
       </PortalContainerContext.Provider>
     </div>
   );

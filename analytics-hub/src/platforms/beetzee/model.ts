@@ -8,7 +8,8 @@ export type Accent = 'gold' | 'orange' | 'teal' | 'violet' | 'coral' | 'blue';
 export interface Breakdown {
   title: string;
   subtitle: string;
-  metrics: { label: string; value: string }[];
+  /** `note` is an optional one-line explanation shown under the value. */
+  metrics: { label: string; value: string; note?: string }[];
   method: { shows: string; calc: string; source: string };
 }
 
@@ -25,6 +26,13 @@ export interface BzKpi {
   breakdown: Breakdown;
 }
 
+/** ROAS card: spelled out, with what the multiple means in pesos. */
+const roasMetric = (roas: string) => ({
+  label: 'Return on ad spend (ROAS)',
+  value: roas,
+  note: `₱${roas.replace('×', '')} in sales for every ₱1 of ad spend`,
+});
+
 const VIEW_KPIS: Record<BzView, string[]> = {
   core: ['investment', 'attributed-sales', 'active-users', 'signups', 'paying', 'completion', 'rewarded-ads', 'cac'],
   marketing: ['budget', 'ad-spend', 'impressions', 'clicks', 'active-app-users', 'cac'],
@@ -35,8 +43,15 @@ export function findCampaign(data: BeetzeeData, id: string): Campaign | null {
   return data.campaigns.find((c) => c.id === id) ?? null;
 }
 
-export function buildKpis(data: BeetzeeData, view: BzView, period: BzPeriod, campaignId: string): BzKpi[] {
-  const p = data.periods[period];
+export function buildKpis(
+  data: BeetzeeData,
+  view: BzView,
+  period: BzPeriod,
+  campaignId: string,
+  rangeLabel = data.periods[period].range,
+  /** Report filter shown in breakdown subtitles (e.g. a platform); campaigns name themselves. */
+  filterLabel?: string,
+): BzKpi[] {
   const fig = data.figures[period];
   const fx = data.fixed;
   const t = data.trends;
@@ -46,8 +61,8 @@ export function buildKpis(data: BeetzeeData, view: BzView, period: BzPeriod, cam
   const clicks = campaign?.clicks[period] ?? fig.clicks;
   const ctr = campaign?.ctr ?? fx.ctr;
   const roas = campaign?.roas ?? fx.roas;
-  const scope = campaign ? ` · ${campaign.name}` : '';
-  const sub = (s: string) => `${s} · ${p.range}${scope}`;
+  const scope = filterLabel ? ` · ${filterLabel}` : campaign ? ` · ${campaign.name}` : '';
+  const sub = (s: string) => `${s} · ${rangeLabel}${scope}`;
   const spark = (total: number, key: string) => sparkline(buildSeries(total, period, key).values);
 
   /** Splits a user total across platforms (Android / iOS / Web) so the parts sum exactly to the total. */
@@ -116,7 +131,7 @@ export function buildKpis(data: BeetzeeData, view: BzView, period: BzPeriod, cam
         metrics: [
           { label: 'Attributed sales', value: fig.attributedSales.label },
           { label: 'Direct purchases', value: fig.purchases.label },
-          { label: 'ROAS', value: fx.roas },
+          roasMetric(fx.roas),
           { label: 'Store conversion', value: fx.storeConversion },
         ],
         method: {
@@ -280,7 +295,7 @@ export function buildKpis(data: BeetzeeData, view: BzView, period: BzPeriod, cam
           { label: 'Ad spend', value: spend.label },
           { label: 'CPC', value: fx.cpc },
           { label: 'CPM', value: fx.cpm },
-          { label: 'ROAS', value: roas },
+          roasMetric(roas),
         ],
         method: {
           shows: 'What was paid to ad platforms for delivered media.',
@@ -363,5 +378,11 @@ export function buildKpis(data: BeetzeeData, view: BzView, period: BzPeriod, cam
     },
   };
 
-  return VIEW_KPIS[view].map((id) => all[id]);
+  // A breakdown only lists what the tile doesn't already show.
+  return VIEW_KPIS[view].map((id) => {
+    const k = all[id];
+    return { ...k, breakdown: { ...k.breakdown, metrics: k.breakdown.metrics.filter((m) => m.value !== k.value) } };
+  });
 }
+
+export const VIEW_KPI_IDS = VIEW_KPIS;

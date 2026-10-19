@@ -38,8 +38,8 @@ export function KpiTile({
       aria-expanded={selected}
       aria-controls="bz-breakdown"
       className={cn(
-        'bz-card group relative flex min-w-0 flex-col overflow-hidden p-4 pl-5 text-left transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[#4e3a66]',
-        selected && '!border-[#4e3a66] ring-1 ring-inset ring-[#e167ff55]',
+        'bz-card group relative flex min-w-0 flex-col overflow-hidden p-4 pl-5 text-left transition-[border-color,transform] hover:-translate-y-0.5 hover:border-border-strong',
+        selected && '!border-border-strong ring-1 ring-inset ring-chart-2/30',
       )}
     >
       <span aria-hidden className="absolute inset-y-0 left-0 w-[3px]" style={{ background: color }} />
@@ -53,7 +53,7 @@ export function KpiTile({
         <ChevronDown
           aria-hidden
           strokeWidth={2}
-          className={cn('h-4 w-4 shrink-0 text-subtle transition-transform', selected && 'rotate-180 text-[#e167ff]')}
+          className={cn('h-4 w-4 shrink-0 text-subtle transition-transform', selected && 'rotate-180 text-chart-2')}
         />
       </span>
       <span className="relative mt-1.5 truncate text-[27px] font-extrabold leading-tight tracking-tight">{kpi.value}</span>

@@ -2,13 +2,14 @@ import { useMemo, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { areaPath, catmullRomPath, nearestIndex, niceMax } from '@/shared/chart';
 import { useElementWidth } from '@/shared/useElementWidth';
 
+/** Brand accent colors as theme tokens, so they adapt to light and dark mode. */
 export const ACCENT_HEX = {
-  gold: '#a457ff',
-  orange: '#e167ff',
-  teal: '#30f4a0',
-  violet: '#7a2dff',
-  coral: '#ff4e71',
-  blue: '#6a47ff',
+  gold: 'rgb(var(--chart-1))',
+  orange: 'rgb(var(--chart-2))',
+  teal: 'rgb(var(--chart-3))',
+  violet: 'rgb(var(--chart-4))',
+  coral: 'rgb(var(--danger))',
+  blue: 'rgb(var(--chart-5))',
 } as const;
 
 export interface LineSeries {
@@ -89,15 +90,15 @@ export function TrendChart({
         <defs>
           {paths.map((s) => (
             <linearGradient key={s.key} id={`bz-area-${s.key}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={s.color} stopOpacity="0.32" />
-              <stop offset="100%" stopColor={s.color} stopOpacity="0" />
+              <stop offset="0%" stopOpacity="0.32" style={{ stopColor: s.color }} />
+              <stop offset="100%" stopOpacity="0" style={{ stopColor: s.color }} />
             </linearGradient>
           ))}
         </defs>
         {[0, 0.25, 0.5, 0.75, 1].map((f) => (
           <g key={f}>
-            <line x1={PAD.left} x2={W - PAD.right} y1={y(max * f)} y2={y(max * f)} stroke="#31203e" strokeDasharray={f === 0 ? undefined : '3 4'} />
-            <text x={PAD.left - 10} y={y(max * f) + 4} textAnchor="end" fontSize="10.5" fill="#8d7f9e">
+            <line x1={PAD.left} x2={W - PAD.right} y1={y(max * f)} y2={y(max * f)} style={{ stroke: 'var(--border)' }} strokeDasharray={f === 0 ? undefined : '3 4'} />
+            <text x={PAD.left - 10} y={y(max * f) + 4} textAnchor="end" fontSize="10.5" style={{ fill: 'rgb(var(--subtle))' }}>
               {f === 0 ? '0' : format(max * f)}
             </text>
           </g>
@@ -110,7 +111,7 @@ export function TrendChart({
               y={H - 8}
               textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}
               fontSize="10.5"
-              fill="#8d7f9e"
+              style={{ fill: 'rgb(var(--subtle))' }}
             >
               {i !== n - 1 && n - 1 - i < labelEvery / 2 ? '' : l}
             </text>
@@ -118,17 +119,17 @@ export function TrendChart({
         )}
         {paths.map((s) => s.areaD && <path key={`a-${s.key}`} d={s.areaD} fill={`url(#bz-area-${s.key})`} />)}
         {paths.map((s) => (
-          <path key={`l-${s.key}`} d={s.line} fill="none" stroke={s.color} strokeWidth="2.4" strokeLinecap="round" />
+          <path key={`l-${s.key}`} d={s.line} fill="none" style={{ stroke: s.color }} strokeWidth="2.4" strokeLinecap="round" />
         ))}
         {paths.map((s) => {
           const p = s.pts[s.pts.length - 1];
-          return <circle key={`e-${s.key}`} cx={p.x} cy={p.y} r="4.5" fill={s.color} stroke="#0f0617" strokeWidth="2" />;
+          return <circle key={`e-${s.key}`} cx={p.x} cy={p.y} r="4.5" strokeWidth="2" style={{ fill: s.color, stroke: 'rgb(var(--background))' }} />;
         })}
         {hover !== null && (
           <g pointerEvents="none">
-            <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={baseline} stroke="#b5a9c5" strokeOpacity="0.45" />
+            <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={baseline} style={{ stroke: 'rgb(var(--muted-foreground))' }} strokeOpacity="0.45" />
             {paths.map((s) => (
-              <circle key={`h-${s.key}`} cx={x(hover)} cy={y(s.values[hover])} r="5" fill="#0f0617" stroke={s.color} strokeWidth="2.4" />
+              <circle key={`h-${s.key}`} cx={x(hover)} cy={y(s.values[hover])} r="5" strokeWidth="2.4" style={{ fill: 'rgb(var(--background))', stroke: s.color }} />
             ))}
           </g>
         )}
@@ -136,7 +137,7 @@ export function TrendChart({
       {hover !== null && (
         <div
           role="status"
-          className="pointer-events-none absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-lg border border-border-strong bg-[#1a1124f2] px-3 py-2 text-xs shadow-lg"
+          className="pointer-events-none absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-lg border border-border-strong bg-[var(--tooltip)] px-3 py-2 text-xs shadow-lg"
           style={{ left: tipLeft }}
         >
           <p className="font-semibold text-muted-foreground">{labels[hover]}</p>
@@ -161,8 +162,8 @@ export function Sparkline({ values, color }: { values: number[]; color: string }
   const last = pts[pts.length - 1];
   return (
     <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden className="block overflow-visible">
-      <path d={catmullRomPath(pts)} fill="none" stroke={color} strokeWidth="1.8" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-      <circle cx={last.x} cy={last.y} r="2.5" fill={color} vectorEffect="non-scaling-stroke" />
+      <path d={catmullRomPath(pts)} fill="none" style={{ stroke: color }} strokeWidth="1.8" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+      <circle cx={last.x} cy={last.y} r="2.5" style={{ fill: color }} vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -182,7 +183,7 @@ export function Donut({ slices, centerLabel, centerValue }: { slices: DonutSlice
     <div className="flex flex-wrap items-center gap-6">
       <div className="relative h-[150px] w-[150px] shrink-0">
         <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" role="img" aria-label={slices.map((s) => `${s.label} ${s.value}%`).join(', ')}>
-          <circle cx="50" cy="50" r={R} fill="none" stroke="#271439" strokeWidth="11" />
+          <circle cx="50" cy="50" r={R} fill="none" strokeWidth="11" style={{ stroke: 'var(--accent)' }} />
           {slices.map((s) => {
             const len = (s.value / total) * C;
             const el = (
@@ -192,7 +193,7 @@ export function Donut({ slices, centerLabel, centerValue }: { slices: DonutSlice
                 cy="50"
                 r={R}
                 fill="none"
-                stroke={s.color}
+                style={{ stroke: s.color }}
                 strokeWidth="11"
                 strokeDasharray={`${Math.max(0, len - 1.2)} ${C}`}
                 strokeDashoffset={-offset}
@@ -229,11 +230,11 @@ export function Gauge({ value, label }: { value: number; label: string }) {
   return (
     <div className="relative mx-auto w-[180px]">
       <svg viewBox="0 0 100 56" className="w-full" role="img" aria-label={`${label} ${value}%`}>
-        <path d="M10 50 A40 40 0 0 1 90 50" fill="none" stroke="#271439" strokeWidth="9" strokeLinecap="round" />
+        <path d="M10 50 A40 40 0 0 1 90 50" fill="none" strokeWidth="9" strokeLinecap="round" style={{ stroke: 'var(--accent)' }} />
         <path
           d="M10 50 A40 40 0 0 1 90 50"
           fill="none"
-          stroke="#30f4a0"
+          style={{ stroke: 'rgb(var(--chart-3))' }}
           strokeWidth="9"
           strokeLinecap="round"
           strokeDasharray={`${(value / 100) * half} ${half}`}

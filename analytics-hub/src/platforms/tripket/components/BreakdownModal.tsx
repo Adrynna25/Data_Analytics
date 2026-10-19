@@ -26,7 +26,7 @@ export function BreakdownModal({
       {kpi && (
         <DialogContent
           hideClose
-          className="max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] max-w-[600px] gap-0 overflow-y-auto border-border-strong bg-[#141110] p-0 max-[780px]:bottom-0 max-[780px]:top-auto max-[780px]:w-full max-[780px]:max-w-none max-[780px]:translate-y-0 max-[780px]:rounded-b-none max-[780px]:data-[state=closed]:slide-out-to-bottom max-[780px]:data-[state=open]:slide-in-from-bottom max-[780px]:data-[state=closed]:zoom-out-100 max-[780px]:data-[state=open]:zoom-in-100"
+          className="max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] max-w-[600px] gap-0 overflow-y-auto border-border-strong bg-popover p-0 max-[780px]:bottom-0 max-[780px]:top-auto max-[780px]:w-full max-[780px]:max-w-none max-[780px]:translate-y-0 max-[780px]:rounded-b-none max-[780px]:data-[state=closed]:slide-out-to-bottom max-[780px]:data-[state=open]:slide-in-from-bottom max-[780px]:data-[state=closed]:zoom-out-100 max-[780px]:data-[state=open]:zoom-in-100"
         >
           <div className="flex items-start gap-3 border-b border-border p-5">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-primary/15 text-brand2 ring-1 ring-inset ring-primary/25">
@@ -46,7 +46,7 @@ export function BreakdownModal({
           </div>
 
           <div className="p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-[#ffffff08] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-soft p-4">
               <div>
                 <p className="text-[11.5px] font-semibold text-subtle">Overall</p>
                 <p className="font-display text-[26px] font-extrabold leading-tight">{kpi.value}</p>
@@ -70,7 +70,7 @@ export function BreakdownModal({
                   <tr key={row.label} className="border-t border-border">
                     <td className="py-3 pr-4">
                       <span className="block text-[13px] font-semibold">{row.label}</span>
-                      <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-[#ffffff0d]">
+                      <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-soft-hover">
                         <span className="tp-bar block h-full rounded-full" style={{ width: `${BAR_WIDTHS[i] ?? 50}%` }} />
                       </span>
                     </td>
