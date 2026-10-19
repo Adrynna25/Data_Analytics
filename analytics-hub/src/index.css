@@ -1,0 +1,168 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Platform themes. Every token lives on the dashboard root (.theme-tripket /
+ * .theme-beetzee), never on :root, so nothing leaks from one platform to the
+ * other. Radix portals render inside the active root (see shared/portal.tsx).
+ * Channel tokens are "r g b" so Tailwind opacity modifiers work.
+ */
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  html,
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: #0d0c0b;
+    color: #f8f7f5;
+    -webkit-font-smoothing: antialiased;
+    font-family: system-ui, sans-serif;
+  }
+  body {
+    overflow-x: hidden;
+  }
+
+  .theme-tripket {
+    --background: 13 12 11;
+    --foreground: 248 247 245;
+    --primary: 249 115 22;
+    --primary-foreground: 255 255 255;
+    --brand2: 251 146 60;
+    --success: 52 211 153;
+    --warning: 251 191 36;
+    --danger: 249 115 22;
+    --muted: #ffffff0a;
+    --muted-foreground: 170 163 158;
+    --subtle: 128 122 118;
+    --faint: 113 107 103;
+    --dim: 98 93 89;
+    --chart-1: 249 115 22;
+    --chart-2: 251 173 82;
+    --chart-3: 52 211 153;
+    --chart-4: 251 191 36;
+    --chart-5: 128 122 118;
+    --ring: 249 115 22;
+    --border: #ffffff14;
+    --border-strong: #ffffff24;
+    --input: #ffffff1f;
+    --surface: #ffffff08;
+    --card: #ffffff0a;
+    --popover: #171411;
+    --accent: #ffffff0f;
+    --radius: 12px;
+    --font-body: 'Inter';
+    --font-display: 'Manrope';
+
+    font-family: var(--font-body), system-ui, sans-serif;
+    color: rgb(var(--foreground));
+    font-variant-numeric: tabular-nums;
+  }
+
+  .theme-beetzee {
+    --background: 15 6 23;
+    --foreground: 249 249 249;
+    --primary: 164 87 255;
+    --primary-foreground: 255 255 255;
+    --brand2: 192 76 253;
+    --success: 48 244 160;
+    --warning: 255 196 87;
+    --danger: 255 78 113;
+    --muted: #ffffff08;
+    --muted-foreground: 181 169 197;
+    --subtle: 141 127 158;
+    --faint: 141 127 158;
+    --dim: 110 98 125;
+    --chart-1: 164 87 255;
+    --chart-2: 225 103 255;
+    --chart-3: 48 244 160;
+    --chart-4: 122 45 255;
+    --chart-5: 106 71 255;
+    --ring: 225 103 255;
+    --border: #31203e;
+    --border-strong: #4e3a66;
+    --input: #4e3a66;
+    --surface: #171020;
+    --card: #171020;
+    --popover: #1a1124;
+    --accent: #271439;
+    --radius: 13px;
+    --font-body: 'Montserrat';
+    --font-display: 'Montserrat';
+
+    /* Named Beetzee tokens from the brand spec */
+    --bz-nav: #090211;
+    --bz-nav-soft: #271439;
+    --bz-gold-soft: #2d0044;
+    --bz-orange-soft: #31114f;
+    --bz-violet-soft: #2c0f42;
+    --bz-teal-soft: #0d3c2d;
+    --bz-coral-soft: #401426;
+
+    font-family: var(--font-body), system-ui, sans-serif;
+    color: rgb(var(--foreground));
+    font-variant-numeric: tabular-nums;
+  }
+
+  :where(.theme-tripket, .theme-beetzee) :focus-visible {
+    outline: 2px solid rgb(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Tripket surfaces */
+  .theme-tripket .tp-app-bg {
+    background:
+      radial-gradient(circle at 89% 22%, #f9731617, transparent 25rem),
+      linear-gradient(145deg, #100e0d, #15100c 58%, #0e0d0c);
+  }
+  .theme-tripket .tp-card {
+    background: linear-gradient(145deg, #ffffff0e, #ffffff06);
+    border: 1px solid #ffffff17;
+    border-radius: 12px;
+  }
+  .theme-tripket .tp-nav-active {
+    background: linear-gradient(90deg, #f9731629, #f973160a);
+    border-color: #f9731666;
+  }
+  .theme-tripket .tp-bar {
+    background: linear-gradient(90deg, #f97316, #fbad52);
+  }
+
+  /* Beetzee surfaces */
+  .theme-beetzee .bz-app-bg {
+    background:
+      radial-gradient(circle at 100% 100%, #7a2dff33, transparent 34rem),
+      linear-gradient(150deg, #0f0617 0%, #13071f 55%, #2d0044 140%);
+  }
+  .theme-beetzee .bz-card {
+    background: linear-gradient(145deg, color-mix(in srgb, #171020 94%, #ffffff), color-mix(in srgb, #171020 82%, #2d0044));
+    border: 1px solid #31203e;
+    border-radius: 13px;
+  }
+  .theme-beetzee .bz-btn-primary {
+    background: linear-gradient(135deg, #a457ff, #c04cfd);
+    color: #fff;
+  }
+  .theme-beetzee .bz-nav-active {
+    background: linear-gradient(90deg, #a457ff38, #c04cfd14);
+    border-color: #4e3a66;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

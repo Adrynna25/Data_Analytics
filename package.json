@@ -1,0 +1,12 @@
+{
+  "name": "data-analytics",
+  "private": true,
+  "description": "Workspace root. Scripts forward to the Analytics Hub app in ./analytics-hub.",
+  "scripts": {
+    "dev": "npm --prefix analytics-hub run dev",
+    "build": "npm --prefix analytics-hub run build",
+    "preview": "npm --prefix analytics-hub run preview",
+    "test": "npm --prefix analytics-hub test",
+    "typecheck": "npm --prefix analytics-hub run typecheck"
+  }
+}
