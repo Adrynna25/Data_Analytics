@@ -1,7 +1,7 @@
 import { ArrowUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { BzKpi } from '../model';
-import { ACCENT_HEX, Sparkline } from './charts';
+import { ACCENT_HEX } from './charts';
 
 export function TrendPill({ trend, good }: { trend: number; good: boolean }) {
   const up = trend >= 0;
@@ -61,11 +61,6 @@ export function KpiTile({
         <TrendPill trend={kpi.trend} good={kpi.good} />
         <span className="text-[11px] text-subtle">{comparison}</span>
       </span>
-      {kpi.spark && (
-        <span className="relative mt-3 block">
-          <Sparkline values={kpi.spark} color={color} />
-        </span>
-      )}
     </button>
   );
 }

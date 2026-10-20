@@ -1,7 +1,6 @@
 /** Builds the KPI tiles (and their breakdown cards) for a view + period + campaign. */
 import type { BeetzeeData, BzPeriod, BzView, Campaign } from './data';
 import { compact } from '@/shared/format';
-import { buildSeries, sparkline } from './series';
 
 export type Accent = 'gold' | 'orange' | 'teal' | 'violet' | 'coral' | 'blue';
 
@@ -22,7 +21,6 @@ export interface BzKpi {
   /** Whether the direction of `trend` is good for the business. */
   good: boolean;
   accent: Accent;
-  spark?: number[];
   breakdown: Breakdown;
 }
 
@@ -63,7 +61,6 @@ export function buildKpis(
   const roas = campaign?.roas ?? fx.roas;
   const scope = filterLabel ? ` · ${filterLabel}` : campaign ? ` · ${campaign.name}` : '';
   const sub = (s: string) => `${s} · ${rangeLabel}${scope}`;
-  const spark = (total: number, key: string) => sparkline(buildSeries(total, period, key).values);
 
   /** Splits a user total across platforms (Android / iOS / Web) so the parts sum exactly to the total. */
   const splitByPlatform = (total: number) => {
@@ -79,7 +76,6 @@ export function buildKpis(
     trend: t.users,
     good: true,
     accent: 'teal',
-    spark: spark(fig.activeUsers.n, 'users'),
     breakdown: {
       title: label,
       subtitle: sub('Active users by device platform'),
@@ -100,7 +96,6 @@ export function buildKpis(
       trend: t.investment,
       good: true,
       accent: 'gold',
-      spark: spark(fig.spend.n, 'spend'),
       breakdown: {
         title: 'Marketing investment',
         subtitle: sub('Paid media spend against budget'),
@@ -124,7 +119,6 @@ export function buildKpis(
       trend: t.sales,
       good: true,
       accent: 'teal',
-      spark: spark(fig.attributedSales.n, 'sales'),
       breakdown: {
         title: 'Attributed sales',
         subtitle: sub('Revenue linked to paid acquisition'),
@@ -150,7 +144,6 @@ export function buildKpis(
       trend: t.signups,
       good: true,
       accent: 'violet',
-      spark: spark(fig.signups.n, 'signups'),
       breakdown: {
         title: 'New sign-ups',
         subtitle: sub('Accounts created from all sources'),
@@ -218,7 +211,6 @@ export function buildKpis(
       trend: t.ads,
       good: true,
       accent: 'orange',
-      spark: spark(fig.impressions.n, 'impressions'),
       breakdown: {
         title: 'Rewarded ads served',
         subtitle: sub('Ads watched in exchange for coins'),
@@ -287,7 +279,6 @@ export function buildKpis(
       trend: t.investment,
       good: true,
       accent: 'orange',
-      spark: spark(spend.n, `spend-${campaignId}`),
       breakdown: {
         title: 'Ad spend',
         subtitle: sub('Media cost and efficiency'),
@@ -311,7 +302,6 @@ export function buildKpis(
       trend: t.ads,
       good: true,
       accent: 'violet',
-      spark: spark(impressions.n, `impressions-${campaignId}`),
       breakdown: {
         title: 'Impressions',
         subtitle: sub('Ad delivery volume'),
@@ -335,7 +325,6 @@ export function buildKpis(
       trend: t.clicks,
       good: true,
       accent: 'blue',
-      spark: spark(clicks.n, `clicks-${campaignId}`),
       breakdown: {
         title: 'Ad clicks',
         subtitle: sub('Engagement with paid ads'),
@@ -359,7 +348,6 @@ export function buildKpis(
       trend: t.sales,
       good: true,
       accent: 'teal',
-      spark: spark(fig.grossSales.n, 'gross'),
       breakdown: {
         title: 'Gross platform sales',
         subtitle: sub('All in-app purchases before fees'),

@@ -51,9 +51,3 @@ export function buildSeries(total: number, period: BzPeriod, key: string): Serie
   values[n - 1] += diff;
   return { labels: Array.from({ length: n }, (_, i) => labelFor(period, i)), values };
 }
-
-/** Evenly sample a series down to `count` points for sparklines. */
-export function sparkline(values: number[], count = 12): number[] {
-  if (values.length <= count) return values;
-  return Array.from({ length: count }, (_, i) => values[Math.round((i * (values.length - 1)) / (count - 1))]);
-}

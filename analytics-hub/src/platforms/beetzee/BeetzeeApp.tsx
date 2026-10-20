@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, Calendar, ChevronDown, ChevronRight, Download, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Bell, Calendar, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { PlatformSwitcher } from '@/app/PlatformSwitcher';
 import { ThemeToggle } from '@/app/ThemeToggle';
@@ -15,11 +15,10 @@ import { formatDateRange } from '@/shared/format';
 import { Icon } from '@/shared/Icon';
 import { PortalContainerContext } from '@/shared/portal';
 import { useEscape } from '@/shared/useEscape';
-import { readStorage, useStoredState, writeStorage } from '@/shared/useStoredState';
+import { useStoredState } from '@/shared/useStoredState';
 import { BZ_VIEWS, isBzPeriod, isBzView, type BeetzeeData, type BzPeriod, type BzView } from './data';
 import { buildKpis } from './model';
 import { BreakdownCard } from './components/BreakdownCard';
-import { CustomizePanel } from './components/CustomizePanel';
 import { KpiTile } from './components/KpiTile';
 import { DetailedReports, buildReports } from './components/Reports';
 
@@ -60,18 +59,6 @@ function reportFilters(data: BeetzeeData): Partial<Record<BzView, FilterOption[]
   };
 }
 
-const hiddenKey = (view: BzView) => `bz-kpis-hidden-${view}`;
-
-/** Hidden KPI ids for a view (everything is shown by default). */
-function loadHidden(view: BzView): string[] {
-  try {
-    const ids = JSON.parse(readStorage(hiddenKey(view)) ?? '[]');
-    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
 export function BeetzeeApp({ data }: { data: BeetzeeData }) {
   const { mode } = usePlatform();
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null);
@@ -82,15 +69,6 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
   const [filters, setFilters] = useState<Partial<Record<BzView, string>>>({});
   const [selectedKpi, setSelectedKpi] = useState<string | null>(null);
   const [openReports, setOpenReports] = useState<string[]>([]);
-  const [customizing, setCustomizing] = useState(false);
-  const [hidden, setHidden] = useState<Record<BzView, string[]>>(() => ({
-    core: loadHidden('core'),
-    marketing: loadHidden('marketing'),
-    app: loadHidden('app'),
-  }));
-  // Latest selection, so quick successive clicks each build on the previous one.
-  const hiddenRef = useRef(hidden);
-
   const page = PAGES[view];
   const p = data.periods[period];
   const rangeLabel = formatDateRange(range.from, range.to);
@@ -106,39 +84,18 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
     [data, view, period, campaignId, rangeLabel, platformLabel],
   );
   const reports = useMemo(() => buildReports(view, data, period, campaignId), [view, data, period, campaignId]);
-  const visibleKpis = kpis.filter((k) => !hidden[view].includes(k.id));
-  const breakdownKpi = visibleKpis.find((k) => k.id === selectedKpi) ?? null;
+  const breakdownKpi = kpis.find((k) => k.id === selectedKpi) ?? null;
 
   useEffect(() => () => void toast.dismiss(), []);
 
   // The date popover is a Radix layer and consumes its own Escape first.
   useEscape(() => {
     if (selectedKpi) setSelectedKpi(null);
-    else if (customizing) setCustomizing(false);
   });
-
-  const saveHidden = (ids: string[]) => {
-    hiddenRef.current = { ...hiddenRef.current, [view]: ids };
-    setHidden(hiddenRef.current);
-    writeStorage(hiddenKey(view), ids.length ? JSON.stringify(ids) : null);
-  };
-
-  const toggleKpi = (id: string) => {
-    const current = hiddenRef.current[view];
-    if (current.includes(id)) {
-      saveHidden(current.filter((x) => x !== id));
-    } else if (kpis.filter((k) => !current.includes(k.id)).length === 1) {
-      toast('Keep at least one KPI on the page');
-    } else {
-      saveHidden([...current, id]);
-      if (selectedKpi === id) setSelectedKpi(null);
-    }
-  };
 
   const navigate = (v: BzView) => {
     setView(v);
     setSelectedKpi(null);
-    setCustomizing(false);
     window.scrollTo({ top: 0 });
   };
 
@@ -156,7 +113,7 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
       ...(filterOption ? [['Report filter', filterOption.label]] : []),
       [],
       ['KPI', 'Value', 'Change', 'Comparison'],
-      ...visibleKpis.map((k) => [k.label, k.value, `${k.trend >= 0 ? '+' : '-'}${Math.abs(k.trend).toFixed(1)}%`, comparison]),
+      ...kpis.map((k) => [k.label, k.value, `${k.trend >= 0 ? '+' : '-'}${Math.abs(k.trend).toFixed(1)}%`, comparison]),
     ];
     const csv = rows.map((r) => r.map(cell).join(',')).join('\n');
     try {
@@ -322,14 +279,6 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
                   <p className="mt-1 text-[13.5px] text-muted-foreground">{page.description}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    aria-expanded={customizing}
-                    onClick={() => setCustomizing((c) => !c)}
-                    className="rounded-[11px] border-border-strong hover:bg-accent"
-                  >
-                    <SlidersHorizontal strokeWidth={1.8} /> Customize KPIs
-                  </Button>
                   <Button onClick={exportReport} className="bz-btn-primary rounded-[11px] hover:opacity-90">
                     <Download strokeWidth={1.8} /> Export report
                   </Button>
@@ -376,19 +325,9 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
                 )}
               </div>
 
-              {customizing && (
-                <CustomizePanel
-                  kpis={kpis}
-                  hidden={hidden[view]}
-                  onToggle={toggleKpi}
-                  onReset={() => saveHidden([])}
-                  onDone={() => setCustomizing(false)}
-                />
-              )}
-
               {/* Columns follow the content width (not the window), so tiles never get cramped. */}
               <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3.5 max-[800px]:grid-cols-2 max-[800px]:gap-2.5">
-                {visibleKpis.map((k) => (
+                {kpis.map((k) => (
                   <KpiTile
                     key={k.id}
                     kpi={k}

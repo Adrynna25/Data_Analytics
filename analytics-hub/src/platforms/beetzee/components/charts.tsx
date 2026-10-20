@@ -153,21 +153,6 @@ export function TrendChart({
   );
 }
 
-export function Sparkline({ values, color }: { values: number[]; color: string }) {
-  const W = 120;
-  const H = 30;
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const pts = values.map((v, i) => ({ x: (W * i) / (values.length - 1), y: H - 3 - ((v - min) / (max - min || 1)) * (H - 6) }));
-  const last = pts[pts.length - 1];
-  return (
-    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden className="block overflow-visible">
-      <path d={catmullRomPath(pts)} fill="none" style={{ stroke: color }} strokeWidth="1.8" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-      <circle cx={last.x} cy={last.y} r="2.5" style={{ fill: color }} vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-}
-
 export interface DonutSlice {
   label: string;
   value: number;

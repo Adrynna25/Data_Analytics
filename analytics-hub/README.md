@@ -65,7 +65,5 @@ All of this is in `src/app/session.ts` and each platform's `data.ts`. UI code do
 | Key | Purpose |
 |---|---|
 | `pf-platform` | last-used platform |
-| `tpk-kpis-{overview,marketing,operators}` | Tripket KPI selection per workspace |
 | `bz-view`, `bz-period` | Beetzee view and period |
-| `bz-kpis-hidden-{core,marketing,app}` | Beetzee KPIs hidden via Customize KPIs |
 | `pf-mode` | dark / light mode (shared by both platforms) |

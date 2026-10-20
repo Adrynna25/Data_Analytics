@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,34 +10,12 @@ import { cn } from '@/lib/utils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { formatDateRange } from '@/shared/format';
 import { PortalContainerContext } from '@/shared/portal';
-import { useEscape } from '@/shared/useEscape';
-import { readStorage, writeStorage } from '@/shared/useStoredState';
-import { DEFAULT_PERIOD, VIEW_ORDER, type Kpi, type Period, type TripketData, type TripketView, type ViewDef } from './data';
+import { DEFAULT_PERIOD, VIEW_ORDER, type Kpi, type Period, type TripketData, type TripketView } from './data';
 import { BreakdownModal } from './components/BreakdownModal';
-import { CustomizePanel } from './components/CustomizePanel';
 import { Header, type DateRange } from './components/Header';
 import { KpiCard } from './components/KpiCard';
 import { OverviewSections, WorkspaceSections } from './components/Sections';
 import { SidebarContent } from './components/Sidebar';
-
-const kpiStorageKey = (view: TripketView) => `tpk-kpis-${view}`;
-
-function defaultSelection(def: ViewDef) {
-  return def.kpis.slice(0, def.defaultCount).map((k) => k.id);
-}
-
-function loadSelection(def: ViewDef): string[] {
-  try {
-    const raw = readStorage(kpiStorageKey(def.id));
-    if (!raw) return defaultSelection(def);
-    const ids = JSON.parse(raw);
-    if (!Array.isArray(ids)) return defaultSelection(def);
-    const valid = def.kpis.map((k) => k.id).filter((id) => ids.includes(id));
-    return valid.length ? valid : defaultSelection(def);
-  } catch {
-    return defaultSelection(def);
-  }
-}
 
 const isPeriod = (v: string): v is Period => v === 'daily' || v === 'weekly' || v === 'monthly';
 
@@ -50,35 +28,23 @@ export function TripketApp({ data }: { data: TripketData }) {
   const [dateOpen, setDateOpen] = useState(false);
   const [modalKpi, setModalKpi] = useState<Kpi | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [customizing, setCustomizing] = useState(false);
-  const [selection, setSelection] = useState<Record<TripketView, string[]>>(() => ({
-    overview: loadSelection(data.views.overview),
-    marketing: loadSelection(data.views.marketing),
-    operators: loadSelection(data.views.operators),
-  }));
-  // Latest selection, so quick successive clicks each build on the previous one.
-  const selectionRef = useRef(selection);
   const [scopes, setScopes] = useState<Partial<Record<TripketView, string>>>({});
 
   const def = data.views[view];
   const preset = data.periods[period];
   const rangeLabel = formatDateRange(range.from, range.to);
-  const selected = selection[view];
-  const visibleKpis = useMemo(() => def.kpis.filter((k) => selected.includes(k.id)), [def, selected]);
+  const pick = (ids: string[] = []) => ids.map((id) => def.kpis.find((k) => k.id === id)).filter((k): k is Kpi => Boolean(k));
+  const cards = useMemo(() => pick(def.cardIds), [def]);
+  const reports = useMemo(() => pick(def.reportIds), [def]);
   const scopeLabel = scopes[view] ?? def.scopes?.[0] ?? '';
 
   // Toasts belong to this mount: clear them when the dashboard unmounts.
   useEffect(() => () => void toast.dismiss(), []);
 
-  // Escape priority: date popover → modal → drawer are Radix layers that consume
-  // Escape themselves (preventDefault), so this only sees what is left.
-  useEscape(() => {
-    if (customizing) setCustomizing(false);
-  });
+  // Escape is handled by the Radix layers themselves (date popover → modal → drawer).
 
   const navigate = (v: TripketView) => {
     setView(v);
-    setCustomizing(false);
     setDrawerOpen(false);
     window.scrollTo({ top: 0 });
   };
@@ -86,31 +52,6 @@ export function TripketApp({ data }: { data: TripketData }) {
   const changePeriod = (p: Period) => {
     setPeriod(p);
     setRange({ from: data.periods[p].from, to: data.periods[p].to });
-  };
-
-  const saveSelection = (ids: string[]) => {
-    selectionRef.current = { ...selectionRef.current, [view]: ids };
-    setSelection(selectionRef.current);
-    writeStorage(kpiStorageKey(view), JSON.stringify(ids));
-  };
-
-  const toggleKpi = (id: string) => {
-    const current = selectionRef.current[view];
-    if (current.includes(id)) {
-      if (current.length === 1) {
-        toast('Keep at least one KPI on the page');
-        return;
-      }
-      saveSelection(current.filter((x) => x !== id));
-    } else {
-      saveSelection(def.kpis.map((k) => k.id).filter((k) => k === id || current.includes(k)));
-    }
-  };
-
-  const resetSelection = () => {
-    selectionRef.current = { ...selectionRef.current, [view]: defaultSelection(def) };
-    setSelection(selectionRef.current);
-    writeStorage(kpiStorageKey(view), null);
   };
 
   const views = VIEW_ORDER.map((v) => data.views[v]);
@@ -154,11 +95,6 @@ export function TripketApp({ data }: { data: TripketData }) {
                 <p className="mt-1 text-[13.5px] text-muted-foreground">{def.description}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {def.kpis.length > def.defaultCount && (
-                  <Button variant="outline" aria-expanded={customizing} onClick={() => setCustomizing((c) => !c)} className="border-border-strong">
-                    <SlidersHorizontal strokeWidth={1.8} /> Customize KPIs
-                  </Button>
-                )}
                 <Button onClick={() => toast(`${def.title} report is ready`)}>
                   <Download strokeWidth={1.8} /> Export report
                 </Button>
@@ -208,27 +144,27 @@ export function TripketApp({ data }: { data: TripketData }) {
               )}
             </div>
 
-            {customizing && (
-              <CustomizePanel
-                kpis={def.kpis}
-                selected={selected}
-                onToggle={toggleKpi}
-                onReset={resetSelection}
-                onDone={() => setCustomizing(false)}
-              />
-            )}
-
-            <div key={`${view}-${period}`} className="grid grid-cols-4 gap-4 max-[1100px]:grid-cols-2 max-[560px]:grid-cols-1">
-              {visibleKpis.map((k, i) => (
+            {/* Columns follow the content width, so 4 cards fill a row and 7 wrap as 5 + 2. */}
+            <div key={`${view}-${period}`} className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4 max-[560px]:grid-cols-1">
+              {cards.map((k, i) => (
                 <KpiCard key={k.id} kpi={k} unit={preset.unit} index={i} onOpen={setModalKpi} />
               ))}
             </div>
 
             <div className="mt-6">
               {view === 'overview' ? (
-                <OverviewSections data={data} onOpenKpi={setModalKpi} onNavigate={navigate} />
+                <OverviewSections data={data} onNavigate={navigate} reports={reports} unit={preset.unit} />
               ) : (
-                def.summary && <WorkspaceSections key={view} summary={def.summary} periodLabel={preset.label} scopeLabel={scopeLabel} />
+                def.summary && (
+                  <WorkspaceSections
+                    key={view}
+                    summary={def.summary}
+                    periodLabel={preset.label}
+                    scopeLabel={scopeLabel}
+                    reports={reports}
+                    unit={preset.unit}
+                  />
+                )
               )}
             </div>
           </main>
