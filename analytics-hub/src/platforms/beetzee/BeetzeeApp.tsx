@@ -16,7 +16,7 @@ import { Icon } from '@/shared/Icon';
 import { PortalContainerContext } from '@/shared/portal';
 import { useStoredState } from '@/shared/useStoredState';
 import { BZ_VIEWS, isBzPeriod, isBzView, type BeetzeeData, type BzPeriod, type BzView } from './data';
-import { buildKpis } from './model';
+import { FEATURED_KPIS, buildKpis } from './model';
 import { BreakdownDialog } from '@/components/kpi/BreakdownDialog';
 import { KpiCard } from '@/components/kpi/KpiCard';
 import type { KpiData } from '@/components/kpi/types';
@@ -84,6 +84,9 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
     [data, view, period, campaignId],
   );
   const reports = useMemo(() => buildReports(view, data, period, campaignId), [view, data, period, campaignId]);
+  const featuredIds = FEATURED_KPIS[view] ?? [];
+  const featured = kpis.filter((k) => featuredIds.includes(k.id));
+  const supporting = kpis.filter((k) => !featuredIds.includes(k.id));
   // Looked up by id so an open breakdown follows period and filter changes.
   const modalKpi = kpis.find((k) => k.id === modalKpiId) ?? null;
 
@@ -321,19 +324,47 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
                 )}
               </div>
 
-              {/* Same card grid as Tripket: columns follow the content width. */}
-              <div key={`${view}-${period}`} className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4 max-[560px]:grid-cols-1">
-                {kpis.map((k, i) => (
-                  <KpiCard
-                    key={k.id}
-                    kpi={k}
-                    comparison={comparison}
-                    index={i}
-                    onOpen={(kpi: KpiData) => setModalKpiId(kpi.id)}
-                    surfaceClassName="bz-card"
-                  />
-                ))}
-              </div>
+              {featured.length > 0 && (
+                <section aria-labelledby="bz-key-results" className="mb-6">
+                  <h2 id="bz-key-results" className="mb-3 text-[11px] font-bold uppercase tracking-[1.4px] text-chart-2">
+                    Key results
+                  </h2>
+                  <div key={`key-${view}-${period}`} className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4 max-[560px]:grid-cols-1">
+                    {featured.map((k, i) => (
+                      <KpiCard
+                        key={k.id}
+                        kpi={k}
+                        comparison={comparison}
+                        index={i}
+                        onOpen={(kpi: KpiData) => setModalKpiId(kpi.id)}
+                        surfaceClassName="bz-card"
+                        featured
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <section aria-labelledby={featured.length > 0 ? 'bz-supporting' : undefined}>
+                {featured.length > 0 && (
+                  <h2 id="bz-supporting" className="mb-3 text-[11px] font-bold uppercase tracking-[1.4px] text-subtle">
+                    Supporting metrics
+                  </h2>
+                )}
+                {/* Same card grid as Tripket: columns follow the content width. */}
+                <div key={`${view}-${period}`} className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4 max-[560px]:grid-cols-1">
+                  {supporting.map((k, i) => (
+                    <KpiCard
+                      key={k.id}
+                      kpi={k}
+                      comparison={comparison}
+                      index={featured.length + i}
+                      onOpen={(kpi: KpiData) => setModalKpiId(kpi.id)}
+                      surfaceClassName="bz-card"
+                    />
+                  ))}
+                </div>
+              </section>
 
               <DetailedReports sections={reports} open={openReports} onOpenChange={setOpenReports} />
             </main>

@@ -35,6 +35,8 @@ export function TripketApp({ data }: { data: TripketData }) {
   const rangeLabel = formatDateRange(range.from, range.to);
   const pick = (ids: string[] = []) => ids.map((id) => def.kpis.find((k) => k.id === id)).filter((k): k is Kpi => Boolean(k));
   const cards = useMemo(() => pick(def.cardIds), [def]);
+  const featured = cards.filter((k) => def.featuredIds?.includes(k.id));
+  const supporting = cards.filter((k) => !def.featuredIds?.includes(k.id));
   const reports = useMemo(() => pick(def.reportIds), [def]);
   const scopeLabel = scopes[view] ?? def.scopes?.[0] ?? '';
 
@@ -144,12 +146,54 @@ export function TripketApp({ data }: { data: TripketData }) {
               )}
             </div>
 
-            {/* Columns follow the content width, so 4 cards fill a row and 7 wrap as 5 + 2. */}
-            <div key={`${view}-${period}`} className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4 max-[560px]:grid-cols-1">
-              {cards.map((k, i) => (
-                <KpiCard key={k.id} kpi={k} comparison={`vs. previous ${preset.unit}`} index={i} onOpen={setModalKpi} surfaceClassName="tp-card" />
-              ))}
-            </div>
+            {featured.length > 0 && (
+              <section aria-labelledby="tp-key-results" className="mb-6">
+                <h2 id="tp-key-results" className="mb-3 text-[11px] font-bold uppercase tracking-[1.4px] text-primary">
+                  Key results
+                </h2>
+                <div key={`key-${view}-${period}`} className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4 max-[560px]:grid-cols-1">
+                  {featured.map((k, i) => (
+                    <KpiCard
+                      key={k.id}
+                      kpi={k}
+                      comparison={`vs. previous ${preset.unit}`}
+                      index={i}
+                      onOpen={setModalKpi}
+                      surfaceClassName="tp-card"
+                      featured
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <section aria-labelledby={featured.length > 0 ? 'tp-supporting' : undefined}>
+              {featured.length > 0 && (
+                <h2 id="tp-supporting" className="mb-3 text-[11px] font-bold uppercase tracking-[1.4px] text-subtle">
+                  Supporting metrics
+                </h2>
+              )}
+              {/* With key results above, the six supporting cards sit 3 + 3; otherwise columns follow the content width. */}
+              <div
+                key={`${view}-${period}`}
+                className={
+                  featured.length > 0
+                    ? 'grid grid-cols-3 gap-4 max-[1100px]:grid-cols-2 max-[560px]:grid-cols-1'
+                    : 'grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4 max-[560px]:grid-cols-1'
+                }
+              >
+                {supporting.map((k, i) => (
+                  <KpiCard
+                    key={k.id}
+                    kpi={k}
+                    comparison={`vs. previous ${preset.unit}`}
+                    index={featured.length + i}
+                    onOpen={setModalKpi}
+                    surfaceClassName="tp-card"
+                  />
+                ))}
+              </div>
+            </section>
 
             <div className="mt-6">
               {view === 'overview' ? (

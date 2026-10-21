@@ -3,7 +3,7 @@
  * with a real API call that returns the same `TripketData` shape.
  */
 import type { IconName } from '@/shared/Icon';
-import type { Direction, KpiBreakdown, KpiData } from '@/components/kpi/types';
+import type { BreakdownKind, Direction, KpiBreakdown, KpiData } from '@/components/kpi/types';
 import { sessionStore } from '@/app/session';
 
 export type TripketView = 'overview' | 'marketing' | 'operators';
@@ -38,6 +38,8 @@ export interface ViewDef {
   kpis: Kpi[];
   /** KPIs shown as cards at the top of the page. */
   cardIds: string[];
+  /** Cards highlighted as Key results above the supporting metrics. */
+  featuredIds?: string[];
   /** KPIs shown as Detailed Reports accordions (with their breakdown inside). */
   reportIds?: string[];
   scopes?: string[];
@@ -70,7 +72,37 @@ const slug = (s: string) =>
  * How each KPI's headline is built. Every breakdown reconciles: its factors add up
  * (or average, or divide) to exactly the number on the card.
  */
-const BREAKDOWNS: Record<string, KpiBreakdown> = {
+/** What each KPI is broken down by, and how its parts make the headline. */
+const META: Record<string, [BreakdownKind, string]> = {
+  'Booking transaction failure': ['sum', 'Cause'],
+  'Server downtime metrics': ['sum', 'Cause'],
+  'Monthly recurring revenue': ['sum', 'Operator tier'],
+  'Booking conversion': ['product', 'Funnel step'],
+  Sales: ['sum', 'Platform'],
+  'Service charge': ['sum', 'Platform'],
+  Passengers: ['sum', 'Fare type'],
+  'Customer acquisition cost (CAC)': ['weighted', 'Channel'],
+  'Vessels or partners': ['sum', 'Vessel type'],
+  'Customer lifetime value': ['weighted', 'Passenger segment'],
+  'Top acquisition channel': ['share', 'Channel'],
+  'Highest-demand route': ['share', 'Route'],
+  'Promo redemption rate': ['ratio', 'Campaign'],
+  'Take rate': ['ratio', 'Operator type'],
+  'Capacity utilization': ['weighted', 'Vessel type'],
+  'Operator feature adoption': ['ratio', 'Modules used'],
+  'Support SLA compliance': ['ratio', 'Ticket type'],
+  'Weather-disrupted trips': ['sum', 'Cause'],
+};
+
+/** KPIs where a fall is good news. */
+const LOWER_IS_BETTER = new Set([
+  'Booking transaction failure',
+  'Server downtime metrics',
+  'Customer acquisition cost (CAC)',
+  'Weather-disrupted trips',
+]);
+
+const BREAKDOWNS: Record<string, Omit<KpiBreakdown, 'kind' | 'dimension'>> = {
   // ── Analytics Overview ──────────────────────────────────────────────
   'Booking transaction failure': {
     method: 'Share of the 218,500 booking attempts this month that failed, added up by cause.',
@@ -82,38 +114,6 @@ const BREAKDOWNS: Record<string, KpiBreakdown> = {
     ],
     reconcile: '1.2% + 0.8% + 0.4% + 0.3% = 2.7% (5,900 failed of 218,500 attempts)',
   },
-  'Payment gateway success': {
-    method: 'Each gateway’s success rate, weighted by its share of payment transactions.',
-    factors: [
-      { label: 'GCash', value: '98.2%', detail: '41% of transactions → 40.26 pts', share: 41 },
-      { label: 'Maya', value: '97.1%', detail: '26% of transactions → 25.25 pts', share: 26 },
-      { label: 'Credit / debit cards', value: '94.8%', detail: '21% of transactions → 19.91 pts', share: 21 },
-      { label: 'Over-the-counter', value: '91.6%', detail: '12% of transactions → 10.99 pts', share: 12 },
-    ],
-    reconcile: '40.26 + 25.25 + 19.91 + 10.99 = 96.41 → 96.4% of payments succeed',
-    takeaway: 'GCash carries the most payments (41%) and has the best success rate (98.2%).',
-  },
-  'Cart abandonment': {
-    method: 'Share of started checkouts that were abandoned, added up by the step where shoppers left.',
-    factors: [
-      { label: 'At trip selection', value: '8.4%', detail: '39% of abandonments', share: 39.4 },
-      { label: 'At passenger details', value: '6.9%', detail: '32% of abandonments', share: 32.4 },
-      { label: 'At payment method', value: '4.7%', detail: '22% of abandonments', share: 22.1 },
-      { label: 'At payment confirmation', value: '1.3%', detail: '6% of abandonments', share: 6.1 },
-    ],
-    reconcile: '8.4% + 6.9% + 4.7% + 1.3% = 21.3% of checkouts abandoned',
-  },
-  'App performance / crash rate': {
-    method: 'Each platform’s crash rate, weighted by its share of app sessions.',
-    factors: [
-      { label: 'Android', value: '0.51%', detail: '65% of sessions → 0.332 pts', share: 65 },
-      { label: 'iOS', value: '0.31%', detail: '22% of sessions → 0.068 pts', share: 22 },
-      { label: 'Mobile web', value: '0.22%', detail: '9% of sessions → 0.020 pts', share: 9 },
-      { label: 'Desktop web', value: '0.08%', detail: '4% of sessions → 0.003 pts', share: 4 },
-    ],
-    reconcile: '0.332 + 0.068 + 0.020 + 0.003 = 0.423 → 0.42% of sessions crash',
-    takeaway: 'Android drives most crashes: it has the highest rate (0.51%) and 65% of sessions.',
-  },
   'Server downtime metrics': {
     method: 'Customer-facing downtime in the last 30 days (43,200 minutes), added up by cause.',
     factors: [
@@ -124,26 +124,6 @@ const BREAKDOWNS: Record<string, KpiBreakdown> = {
     ],
     reconcile: '5 + 4 + 3 + 1 = 13 min down of 43,200 → 99.97% uptime',
   },
-  'Payment gateway & refund report': {
-    method: 'Money refunded to passengers this month, added up by the gateway it was paid back through.',
-    factors: [
-      { label: 'GCash refunds', value: '₱512K', detail: '41% of refunds', share: 41.3 },
-      { label: 'Card refunds', value: '₱386K', detail: '31% of refunds', share: 31.1 },
-      { label: 'Maya refunds', value: '₱244K', detail: '20% of refunds', share: 19.7 },
-      { label: 'Over-the-counter refunds', value: '₱98K', detail: '8% of refunds', share: 7.9 },
-    ],
-    reconcile: '₱512K + ₱386K + ₱244K + ₱98K = ₱1.24M refunded',
-  },
-  'Route & schedule popularity': {
-    method: 'Passengers on the most-booked route (Cebu → Tagbilaran), added up by departure time.',
-    factors: [
-      { label: '6:00 AM departure', value: '4.2K', detail: '33% of the route’s passengers', share: 32.8 },
-      { label: '9:30 AM departure', value: '3.5K', detail: '27% of the route’s passengers', share: 27.3 },
-      { label: '1:00 PM departure', value: '2.9K', detail: '23% of the route’s passengers', share: 22.7 },
-      { label: '5:30 PM departure', value: '2.2K', detail: '17% of the route’s passengers', share: 17.2 },
-    ],
-    reconcile: '4.2K + 3.5K + 2.9K + 2.2K = 12.8K passengers on Cebu → Tagbilaran',
-  },
   'Monthly recurring revenue': {
     method: 'Recurring subscription revenue from operators, added up by operator tier.',
     factors: [
@@ -153,26 +133,6 @@ const BREAKDOWNS: Record<string, KpiBreakdown> = {
       { label: 'Add-on modules', value: '₱0.18M', detail: '6% of MRR', share: 6.3 },
     ],
     reconcile: '₱1.42M + ₱0.88M + ₱0.36M + ₱0.18M = ₱2.84M a month (× 12 = ₱34.1M ARR)',
-  },
-  'Gross booking value': {
-    method: 'Total value of bookings made through Tripket, added up by operator type.',
-    factors: [
-      { label: 'Large ferry lines', value: '₱38.2M', detail: '56% of booking value', share: 55.8 },
-      { label: 'Fast craft operators', value: '₱18.6M', detail: '27% of booking value', share: 27.2 },
-      { label: 'Small boat operators', value: '₱7.4M', detail: '11% of booking value', share: 10.8 },
-      { label: 'Vehicle & cargo add-ons', value: '₱4.2M', detail: '6% of booking value', share: 6.1 },
-    ],
-    reconcile: '₱38.2M + ₱18.6M + ₱7.4M + ₱4.2M = ₱68.4M',
-  },
-  'Monthly active bookers': {
-    method: 'Unique passengers who paid for at least one booking this month, by type of booker.',
-    factors: [
-      { label: 'Repeat passengers', value: '25.6K', detail: '53% of bookers', share: 53.1 },
-      { label: 'New passengers', value: '14.8K', detail: '31% of bookers', share: 30.7 },
-      { label: 'Returning after 90+ days', value: '5.1K', detail: '11% of bookers', share: 10.6 },
-      { label: 'Business accounts', value: '2.7K', detail: '6% of bookers', share: 5.6 },
-    ],
-    reconcile: '25.6K + 14.8K + 5.1K + 2.7K = 48.2K active bookers',
   },
   'Booking conversion': {
     method: 'Each step of the booking funnel keeps a share of shoppers; multiplying the steps gives search-to-booking conversion.',
@@ -188,14 +148,20 @@ const BREAKDOWNS: Record<string, KpiBreakdown> = {
 
   // ── Marketing & Customer ────────────────────────────────────────────
   Sales: {
-    method: 'Gross ticket sales across all routes, added up by what was sold.',
+    method: 'Total value of tickets sold through Tripket, added up by the platform the booking was made on.',
     factors: [
-      { label: 'Passenger fares', value: '₱51.6M', detail: '75% of sales', share: 75.4 },
-      { label: 'Vehicle & cargo fares', value: '₱9.8M', detail: '14% of sales', share: 14.3 },
-      { label: 'Add-ons (baggage, insurance)', value: '₱4.6M', detail: '7% of sales', share: 6.7 },
-      { label: 'Rebooking & change fees', value: '₱2.4M', detail: '4% of sales', share: 3.5 },
+      { label: 'Mobile app', value: '₱36.2M', detail: '53% of sales', share: 52.9 },
+      { label: 'Web', value: '₱19.7M', detail: '29% of sales', share: 28.8 },
+      { label: 'Partner agents', value: '₱9.1M', detail: '13% of sales', share: 13.3 },
+      { label: 'Over-the-counter', value: '₱3.4M', detail: '5% of sales', share: 5.0 },
     ],
-    reconcile: '₱51.6M + ₱9.8M + ₱4.6M + ₱2.4M = ₱68.4M in sales',
+    reconcile: '₱36.2M + ₱19.7M + ₱9.1M + ₱3.4M = ₱68.4M in sales',
+    context: [
+      { label: 'By product · Passenger fares', value: '₱51.6M' },
+      { label: 'By product · Vehicle & cargo', value: '₱9.8M' },
+      { label: 'By product · Add-ons', value: '₱4.6M' },
+      { label: 'By product · Rebooking fees', value: '₱2.4M' },
+    ],
   },
   'Service charge': {
     method: 'Platform fees Tripket collected, added up by booking channel. Fees are 4.2% of sales.',
@@ -339,33 +305,37 @@ const BREAKDOWNS: Record<string, KpiBreakdown> = {
   },
 };
 
-/** Tripket colors changes by direction: up is green, down is orange. */
+/** Change pills are green for good news and orange for bad news (a falling failure rate is good). */
 function kpi(label: string, value: string, change: string, direction: Direction, detail: string, icon: IconName): Kpi {
   const breakdown = BREAKDOWNS[label];
-  if (!breakdown) throw new Error(`Missing breakdown for ${label}`);
-  return { id: slug(label), label, value, change, direction, tone: direction === 'up' ? 'good' : 'bad', detail, icon, breakdown };
+  const meta = META[label];
+  if (!breakdown || !meta) throw new Error(`Missing breakdown for ${label}`);
+  const good = (direction === 'up') !== LOWER_IS_BETTER.has(label);
+  return {
+    id: slug(label),
+    label,
+    value,
+    change,
+    direction,
+    tone: good ? 'good' : 'bad',
+    detail,
+    icon,
+    breakdown: { kind: meta[0], dimension: meta[1], ...breakdown },
+  };
 }
 
 const OVERVIEW_KPIS: Kpi[] = [
   // Cards (tech side)
   kpi('Booking transaction failure', '2.7%', '0.8%', 'down', 'Payment, seat, and search errors', 'ticket'),
-  kpi('Payment gateway success', '96.4%', '1.8%', 'up', 'GCash, Maya, cards & OTC', 'card'),
-  kpi('Cart abandonment', '21.3%', '3.6%', 'down', 'Checkout exits before payment', 'cart'),
-  kpi('App performance / crash rate', '0.42%', '0.11%', 'down', 'Android, iOS, and web', 'mobile'),
   kpi('Server downtime metrics', '13 min', '41.2%', 'down', 'Customer-facing downtime · 99.97% uptime (30 days)', 'server'),
-  kpi('Payment gateway & refund report', '₱1.24M', '7.5%', 'down', 'Refunded across 1,842 refund & change requests', 'refresh'),
-  // Cards (core business)
-  kpi('Route & schedule popularity', 'CEB → TAG', '12.4%', 'up', '12.8K passengers · busiest at 6:00 AM', 'route'),
   // Detailed reports (the previous overview cards)
   kpi('Monthly recurring revenue', '₱2.84M', '6.3%', 'up', 'ARR run-rate ₱34.1M', 'trend'),
-  kpi('Gross booking value', '₱68.4M', '9.8%', 'up', '212.6K transactions processed', 'coins'),
-  kpi('Monthly active bookers', '48.2K', '10.7%', 'up', 'Unique paying passengers', 'users'),
   kpi('Booking conversion', '62.8%', '4.1%', 'up', 'Search to confirmed booking', 'ticket'),
 ];
 
 const MARKETING_KPIS: Kpi[] = [
   // Cards
-  kpi('Sales', '₱68.4M', '9.8%', 'up', 'Gross ticket sales across all routes', 'banknote'),
+  kpi('Sales', '₱68.4M', '9.8%', 'up', '212.6K transactions across all routes', 'banknote'),
   kpi('Service charge', '₱2.87M', '10.6%', 'up', 'Platform fees collected (4.2% of sales)', 'coins'),
   kpi('Passengers', '486.3K', '11.2%', 'up', 'Tickets issued to travelers', 'users'),
   kpi('Customer acquisition cost (CAC)', '₱184', '8.2%', 'down', 'Acquisition spend ÷ new paying users', 'target'),
@@ -393,10 +363,23 @@ export const TRIPKET_DATA: TripketData = {
       navIcon: 'grid',
       eyebrow: 'Executive overview',
       title: 'Tripket Analytics',
-      description: 'Top-line business results, platform health, and the status of each workspace.',
-      kpis: OVERVIEW_KPIS,
-      cardIds: OVERVIEW_KPIS.slice(0, 7).map((k) => k.id),
-      reportIds: OVERVIEW_KPIS.slice(7).map((k) => k.id),
+      description: 'The few numbers that matter most across bookings, marketing, operators, and platform health.',
+      // Executive view: pulls the key KPIs from every workspace, most important first.
+      kpis: [...OVERVIEW_KPIS, ...MARKETING_KPIS, ...OPERATOR_KPIS],
+      featuredIds: ['sales', 'passengers', 'service-charge', 'monthly-recurring-revenue'],
+      cardIds: [
+        'sales',
+        'passengers',
+        'service-charge',
+        'monthly-recurring-revenue',
+        'customer-acquisition-cost-cac',
+        'booking-conversion',
+        'capacity-utilization',
+        'support-sla-compliance',
+        'booking-transaction-failure',
+        'server-downtime-metrics',
+      ],
+      reportIds: ['customer-lifetime-value', 'top-acquisition-channel', 'highest-demand-route', 'weather-disrupted-trips'],
     },
     marketing: {
       id: 'marketing',

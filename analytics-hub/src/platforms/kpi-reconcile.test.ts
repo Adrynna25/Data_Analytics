@@ -29,6 +29,13 @@ describe('Tripket breakdowns reconcile to the card value', () => {
     return k;
   };
 
+  it('every card and report on every page points at a real KPI', () => {
+    for (const v of Object.values(TRIPKET_DATA.views)) {
+      const ids = new Set(v.kpis.map((k) => k.id));
+      for (const id of [...v.cardIds, ...(v.reportIds ?? [])]) expect(ids.has(id), `${v.id} → ${id}`).toBe(true);
+    }
+  });
+
   it('every KPI has factors and a reconciliation line', () => {
     for (const k of kpis.values()) {
       expect(k.breakdown.factors.length, k.id).toBeGreaterThan(1);
@@ -38,12 +45,8 @@ describe('Tripket breakdowns reconcile to the card value', () => {
 
   it.each([
     'booking-transaction-failure',
-    'cart-abandonment',
     'server-downtime-metrics',
-    'payment-gateway-and-refund-report',
     'monthly-recurring-revenue',
-    'gross-booking-value',
-    'monthly-active-bookers',
     'sales',
     'service-charge',
     'passengers',
@@ -54,7 +57,7 @@ describe('Tripket breakdowns reconcile to the card value', () => {
     close(sum(k), num(k.value), id);
   });
 
-  it.each(['payment-gateway-success', 'app-performance-crash-rate', 'capacity-utilization', 'customer-lifetime-value', 'customer-acquisition-cost-cac'])(
+  it.each(['capacity-utilization', 'customer-lifetime-value', 'customer-acquisition-cost-cac'])(
     '%s: weighted average matches',
     (id) => {
       const k = get(id);
@@ -67,8 +70,6 @@ describe('Tripket breakdowns reconcile to the card value', () => {
     const top = get('top-acquisition-channel');
     close(sum(top), 100, 'top channel shares');
     expect(num(top.change)).toBe(num(top.breakdown.factors[0].value));
-    const route = get('route-and-schedule-popularity');
-    close(sum(route), 12_800, 'route departures');
     expect(num(get('highest-demand-route').breakdown.factors[0].value)).toBe(12_800);
   });
 

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Icon } from '@/shared/Icon';
 import { cn } from '@/lib/utils';
-import { BreakdownFactors, BreakdownSummary, BreakdownTakeaway } from './BreakdownBody';
+import { BreakdownReport } from './BreakdownBody';
 import type { KpiData } from './types';
 
 /** On-demand KPI breakdown (a bottom sheet on mobile), shared by both dashboards. */
@@ -44,14 +44,10 @@ export function BreakdownDialog({
 
           <div className="p-5">
             <DialogDescription className="sr-only">{kpi.detail}</DialogDescription>
-            <BreakdownSummary kpi={kpi} comparison={comparison} />
-            <div className="mt-5">
-              <BreakdownFactors kpi={kpi} />
-            </div>
+            <BreakdownReport kpi={kpi} comparison={comparison} />
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border p-5 max-[560px]:flex-col max-[560px]:items-stretch">
-            <BreakdownTakeaway kpi={kpi} comparison={comparison} />
+          <div className="flex justify-end border-t border-border p-5 max-[560px]:flex-col max-[560px]:items-stretch">
             <DialogClose asChild>
               <Button className={cn(doneClassName)}>Done</Button>
             </DialogClose>

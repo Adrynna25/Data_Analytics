@@ -5,7 +5,7 @@ import { Icon } from '@/shared/Icon';
 import { compact, signedPercent } from '@/shared/format';
 import type { Kpi, TripketData, TripketView, WorkspaceSummary } from '../data';
 import { BookingsChart } from './BookingsChart';
-import { BreakdownFactors, BreakdownSummary, BreakdownTakeaway } from '@/components/kpi/BreakdownBody';
+import { BreakdownReport } from '@/components/kpi/BreakdownBody';
 import { DeltaPill } from '@/components/kpi/DeltaPill';
 import { StatusPill } from './StatusPill';
 
@@ -122,8 +122,6 @@ const REPORT_KICKERS: Record<string, string> = {
   'highest-demand-route': 'Demand',
   'promo-redemption-rate': 'Promotions',
   'monthly-recurring-revenue': 'Revenue',
-  'gross-booking-value': 'Booking value',
-  'monthly-active-bookers': 'Customers',
   'booking-conversion': 'Conversion',
   'weather-disrupted-trips': 'Disruptions',
 };
@@ -142,13 +140,7 @@ function ReportSection({ kpi, unit }: { kpi: Kpi; unit: string }) {
         </>
       }
     >
-      <BreakdownSummary kpi={kpi} comparison={`vs. previous ${unit}`} />
-      <div className="mt-5">
-        <BreakdownFactors kpi={kpi} />
-      </div>
-      <div className="mt-4">
-        <BreakdownTakeaway kpi={kpi} comparison={`vs. previous ${unit}`} />
-      </div>
+      <BreakdownReport kpi={kpi} comparison={`vs. previous ${unit}`} />
     </Section>
   );
 }

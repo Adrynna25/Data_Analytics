@@ -10,7 +10,17 @@ export interface Factor {
   share?: number;
 }
 
+/**
+ * How the parts make the headline:
+ * sum — parts add up; weighted — weighted average of rates; ratio — one number divided by another;
+ * product — funnel steps multiplied; share — parts are shares of a whole and the headline is the largest.
+ */
+export type BreakdownKind = 'sum' | 'weighted' | 'ratio' | 'product' | 'share';
+
 export interface KpiBreakdown {
+  kind: BreakdownKind;
+  /** What the KPI is broken down by, e.g. "Platform", "Cause", "Channel". */
+  dimension: string;
   /** How the headline number is built, in one sentence. */
   method: string;
   factors: Factor[];

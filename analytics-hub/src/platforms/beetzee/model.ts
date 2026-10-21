@@ -3,7 +3,7 @@
  * Every breakdown reconciles: its factors add up (or divide) to the card's number
  * for whichever period is selected.
  */
-import type { Factor, KpiBreakdown, KpiData } from '@/components/kpi/types';
+import type { BreakdownKind, Factor, KpiBreakdown, KpiData } from '@/components/kpi/types';
 import type { IconName } from '@/shared/Icon';
 import { compact } from '@/shared/format';
 import type { BeetzeeData, BzPeriod, BzView, Campaign, Fig } from './data';
@@ -11,9 +11,32 @@ import type { BeetzeeData, BzPeriod, BzView, Campaign, Fig } from './data';
 export type BzKpi = KpiData;
 
 const VIEW_KPIS: Record<BzView, string[]> = {
-  core: ['investment', 'attributed-sales', 'active-users', 'signups', 'paying', 'completion', 'rewarded-ads', 'cac'],
+  core: ['attributed-sales', 'signups', 'paying', 'active-users', 'investment', 'cac', 'completion', 'rewarded-ads'],
   marketing: ['budget', 'ad-spend', 'impressions', 'clicks', 'active-app-users', 'cac'],
   app: ['gross-sales', 'active-users', 'completion', 'rewarded-ads', 'signups'],
+};
+
+/** What each KPI is broken down by, and how its parts make the headline. */
+const META: Record<string, [BreakdownKind, string]> = {
+  investment: ['sum', 'Campaign'],
+  'attributed-sales': ['sum', 'Campaign'],
+  'active-users': ['sum', 'Platform'],
+  'active-app-users': ['sum', 'Platform'],
+  signups: ['sum', 'Sign-up source'],
+  paying: ['sum', 'E-wallet'],
+  completion: ['ratio', 'Genre'],
+  'rewarded-ads': ['sum', 'Reward type'],
+  cac: ['ratio', 'Calculation input'],
+  budget: ['sum', 'Budget status'],
+  'ad-spend': ['sum', 'Campaign'],
+  impressions: ['sum', 'Campaign'],
+  clicks: ['sum', 'Campaign'],
+  'gross-sales': ['sum', 'Product'],
+};
+
+/** Key results shown first and highlighted; the rest are supporting metrics. */
+export const FEATURED_KPIS: Partial<Record<BzView, string[]>> = {
+  core: ['attributed-sales', 'signups', 'paying', 'active-users'],
 };
 
 export function findCampaign(data: BeetzeeData, id: string): Campaign | null {
@@ -96,7 +119,7 @@ export function buildKpis(data: BeetzeeData, view: BzView, period: BzPeriod, cam
     trend: number,
     detail: string,
     icon: IconName,
-    breakdown: KpiBreakdown,
+    breakdown: Omit<KpiBreakdown, 'kind' | 'dimension'>,
     good = true,
   ): BzKpi => ({
     id,
@@ -107,7 +130,7 @@ export function buildKpis(data: BeetzeeData, view: BzView, period: BzPeriod, cam
     tone: good ? 'good' : 'bad',
     detail,
     icon,
-    breakdown,
+    breakdown: { kind: META[id][0], dimension: META[id][1], ...breakdown },
   });
 
   const spendFactors = byCampaign(fig.spend.n, (c) => c.spend[period].n, peso, 'of spend');
