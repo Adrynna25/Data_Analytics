@@ -11,9 +11,9 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { formatDateRange } from '@/shared/format';
 import { PortalContainerContext } from '@/shared/portal';
 import { DEFAULT_PERIOD, VIEW_ORDER, type Kpi, type Period, type TripketData, type TripketView } from './data';
-import { BreakdownModal } from './components/BreakdownModal';
 import { Header, type DateRange } from './components/Header';
-import { KpiCard } from './components/KpiCard';
+import { BreakdownDialog } from '@/components/kpi/BreakdownDialog';
+import { KpiCard } from '@/components/kpi/KpiCard';
 import { OverviewSections, WorkspaceSections } from './components/Sections';
 import { SidebarContent } from './components/Sidebar';
 
@@ -147,7 +147,7 @@ export function TripketApp({ data }: { data: TripketData }) {
             {/* Columns follow the content width, so 4 cards fill a row and 7 wrap as 5 + 2. */}
             <div key={`${view}-${period}`} className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4 max-[560px]:grid-cols-1">
               {cards.map((k, i) => (
-                <KpiCard key={k.id} kpi={k} unit={preset.unit} index={i} onOpen={setModalKpi} />
+                <KpiCard key={k.id} kpi={k} comparison={`vs. previous ${preset.unit}`} index={i} onOpen={setModalKpi} surfaceClassName="tp-card" />
               ))}
             </div>
 
@@ -170,11 +170,10 @@ export function TripketApp({ data }: { data: TripketData }) {
           </main>
         </div>
 
-        <BreakdownModal
+        <BreakdownDialog
           kpi={modalKpi}
-          rangeLabel={rangeLabel}
-          periodLabel={preset.label}
-          unit={preset.unit}
+          eyebrow={`${rangeLabel} · ${preset.label}`}
+          comparison={`vs. previous ${preset.unit}`}
           onClose={() => setModalKpi(null)}
         />
         <Toaster theme={mode} />

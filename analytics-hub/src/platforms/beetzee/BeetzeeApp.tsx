@@ -14,12 +14,12 @@ import { DateRangeForm, type DateRange } from '@/shared/DateRangeForm';
 import { formatDateRange } from '@/shared/format';
 import { Icon } from '@/shared/Icon';
 import { PortalContainerContext } from '@/shared/portal';
-import { useEscape } from '@/shared/useEscape';
 import { useStoredState } from '@/shared/useStoredState';
 import { BZ_VIEWS, isBzPeriod, isBzView, type BeetzeeData, type BzPeriod, type BzView } from './data';
 import { buildKpis } from './model';
-import { BreakdownCard } from './components/BreakdownCard';
-import { KpiTile } from './components/KpiTile';
+import { BreakdownDialog } from '@/components/kpi/BreakdownDialog';
+import { KpiCard } from '@/components/kpi/KpiCard';
+import type { KpiData } from '@/components/kpi/types';
 import { DetailedReports, buildReports } from './components/Reports';
 
 const PAGES: Record<BzView, { eyebrow: string; title: string; description: string }> = {
@@ -67,7 +67,7 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
   const [range, setRange] = useState<DateRange>(() => ({ from: data.periods[period].from, to: data.periods[period].to }));
   const [dateOpen, setDateOpen] = useState(false);
   const [filters, setFilters] = useState<Partial<Record<BzView, string>>>({});
-  const [selectedKpi, setSelectedKpi] = useState<string | null>(null);
+  const [modalKpiId, setModalKpiId] = useState<string | null>(null);
   const [openReports, setOpenReports] = useState<string[]>([]);
   const page = PAGES[view];
   const p = data.periods[period];
@@ -78,24 +78,20 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
   const filterId = filters[view] ?? 'all';
   const filterOption = filterOptions?.find((o) => o.id === filterId) ?? filterOptions?.[0];
   const campaignId = view === 'marketing' ? filterId : 'all';
-  const platformLabel = view === 'app' && filterId !== 'all' ? filterOption?.label : undefined;
+  const filterScope = filterId !== 'all' && filterOption ? ` · ${filterOption.label}` : '';
   const kpis = useMemo(
-    () => buildKpis(data, view, period, campaignId, rangeLabel, platformLabel),
-    [data, view, period, campaignId, rangeLabel, platformLabel],
+    () => buildKpis(data, view, period, campaignId),
+    [data, view, period, campaignId],
   );
   const reports = useMemo(() => buildReports(view, data, period, campaignId), [view, data, period, campaignId]);
-  const breakdownKpi = kpis.find((k) => k.id === selectedKpi) ?? null;
+  // Looked up by id so an open breakdown follows period and filter changes.
+  const modalKpi = kpis.find((k) => k.id === modalKpiId) ?? null;
 
   useEffect(() => () => void toast.dismiss(), []);
 
-  // The date popover is a Radix layer and consumes its own Escape first.
-  useEscape(() => {
-    if (selectedKpi) setSelectedKpi(null);
-  });
-
   const navigate = (v: BzView) => {
     setView(v);
-    setSelectedKpi(null);
+    setModalKpiId(null);
     window.scrollTo({ top: 0 });
   };
 
@@ -113,7 +109,7 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
       ...(filterOption ? [['Report filter', filterOption.label]] : []),
       [],
       ['KPI', 'Value', 'Change', 'Comparison'],
-      ...kpis.map((k) => [k.label, k.value, `${k.trend >= 0 ? '+' : '-'}${Math.abs(k.trend).toFixed(1)}%`, comparison]),
+      ...kpis.map((k) => [k.label, k.value, `${k.direction === 'up' ? '+' : '-'}${k.change}`, comparison]),
     ];
     const csv = rows.map((r) => r.map(cell).join(',')).join('\n');
     try {
@@ -325,25 +321,31 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
                 )}
               </div>
 
-              {/* Columns follow the content width (not the window), so tiles never get cramped. */}
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3.5 max-[800px]:grid-cols-2 max-[800px]:gap-2.5">
-                {kpis.map((k) => (
-                  <KpiTile
+              {/* Same card grid as Tripket: columns follow the content width. */}
+              <div key={`${view}-${period}`} className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4 max-[560px]:grid-cols-1">
+                {kpis.map((k, i) => (
+                  <KpiCard
                     key={k.id}
                     kpi={k}
                     comparison={comparison}
-                    selected={selectedKpi === k.id}
-                    onToggle={() => setSelectedKpi((s) => (s === k.id ? null : k.id))}
+                    index={i}
+                    onOpen={(kpi: KpiData) => setModalKpiId(kpi.id)}
+                    surfaceClassName="bz-card"
                   />
                 ))}
               </div>
-
-              {breakdownKpi && <BreakdownCard kpi={breakdownKpi} onClose={() => setSelectedKpi(null)} />}
 
               <DetailedReports sections={reports} open={openReports} onOpenChange={setOpenReports} />
             </main>
           </div>
         </div>
+        <BreakdownDialog
+          kpi={modalKpi}
+          eyebrow={`${rangeLabel} · ${p.label}${filterScope}`}
+          comparison={comparison}
+          onClose={() => setModalKpiId(null)}
+          doneClassName="bz-btn-primary hover:opacity-90"
+        />
         <Toaster theme={mode} />
       </PortalContainerContext.Provider>
     </div>

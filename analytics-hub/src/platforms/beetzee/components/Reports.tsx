@@ -106,7 +106,7 @@ function Funnel({ data, period }: { data: BeetzeeData; period: BzPeriod }) {
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-[11px] border border-danger/25 bg-[var(--bz-coral-soft)] px-4 py-3">
         <span className="text-[13px] font-semibold">Customer acquisition cost</span>
         <span className="text-[13px] text-muted-foreground">
-          <strong className="text-base font-extrabold text-foreground">{fx.cac}</strong> per paying user ·{' '}
+          <strong className="text-base font-extrabold text-foreground">₱{(fig.spend.n / fig.paying.n).toFixed(2)}</strong> per paying user ·{' '}
           <span className="text-success">{signedPercent(fx.cacTrend)}</span>
         </span>
       </div>

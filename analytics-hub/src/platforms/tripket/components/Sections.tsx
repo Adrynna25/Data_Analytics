@@ -5,8 +5,9 @@ import { Icon } from '@/shared/Icon';
 import { compact, signedPercent } from '@/shared/format';
 import type { Kpi, TripketData, TripketView, WorkspaceSummary } from '../data';
 import { BookingsChart } from './BookingsChart';
-import { BreakdownSummary, BreakdownTable, BreakdownTakeaway } from './BreakdownBody';
-import { DeltaPill, StatusPill } from './DeltaPill';
+import { BreakdownFactors, BreakdownSummary, BreakdownTakeaway } from '@/components/kpi/BreakdownBody';
+import { DeltaPill } from '@/components/kpi/DeltaPill';
+import { StatusPill } from './StatusPill';
 
 function Section({ value, kicker, title, meta, children }: { value: string; kicker: string; title: string; meta: ReactNode; children: ReactNode }) {
   return (
@@ -137,16 +138,16 @@ function ReportSection({ kpi, unit }: { kpi: Kpi; unit: string }) {
       meta={
         <>
           <strong className="font-display text-[13px] font-extrabold text-foreground">{kpi.value}</strong>
-          <DeltaPill direction={kpi.direction} change={kpi.change} />
+          <DeltaPill direction={kpi.direction} change={kpi.change} tone={kpi.tone} />
         </>
       }
     >
-      <BreakdownSummary kpi={kpi} unit={unit} />
+      <BreakdownSummary kpi={kpi} comparison={`vs. previous ${unit}`} />
       <div className="mt-5">
-        <BreakdownTable kpi={kpi} />
+        <BreakdownFactors kpi={kpi} />
       </div>
       <div className="mt-4">
-        <BreakdownTakeaway kpi={kpi} unit={unit} />
+        <BreakdownTakeaway kpi={kpi} comparison={`vs. previous ${unit}`} />
       </div>
     </Section>
   );

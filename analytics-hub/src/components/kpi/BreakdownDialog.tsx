@@ -2,21 +2,23 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Icon } from '@/shared/Icon';
-import type { Kpi } from '../data';
-import { BreakdownSummary, BreakdownTable, BreakdownTakeaway } from './BreakdownBody';
+import { cn } from '@/lib/utils';
+import { BreakdownFactors, BreakdownSummary, BreakdownTakeaway } from './BreakdownBody';
+import type { KpiData } from './types';
 
-export function BreakdownModal({
+/** On-demand KPI breakdown (a bottom sheet on mobile), shared by both dashboards. */
+export function BreakdownDialog({
   kpi,
-  rangeLabel,
-  periodLabel,
-  unit,
+  eyebrow,
+  comparison,
   onClose,
+  doneClassName,
 }: {
-  kpi: Kpi | null;
-  rangeLabel: string;
-  periodLabel: string;
-  unit: string;
+  kpi: KpiData | null;
+  eyebrow: string;
+  comparison: string;
   onClose: () => void;
+  doneClassName?: string;
 }) {
   return (
     <Dialog open={kpi !== null} onOpenChange={(o) => !o && onClose()}>
@@ -30,9 +32,7 @@ export function BreakdownModal({
               <Icon name={kpi.icon} size={20} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-brand2">
-                {rangeLabel} · {periodLabel}
-              </p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-brand2">{eyebrow}</p>
               <DialogTitle className="mt-1 font-display text-lg font-extrabold">{kpi.label}</DialogTitle>
             </div>
             <DialogClose asChild>
@@ -44,16 +44,16 @@ export function BreakdownModal({
 
           <div className="p-5">
             <DialogDescription className="sr-only">{kpi.detail}</DialogDescription>
-            <BreakdownSummary kpi={kpi} unit={unit} />
+            <BreakdownSummary kpi={kpi} comparison={comparison} />
             <div className="mt-5">
-              <BreakdownTable kpi={kpi} />
+              <BreakdownFactors kpi={kpi} />
             </div>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border p-5 max-[560px]:flex-col max-[560px]:items-stretch">
-            <BreakdownTakeaway kpi={kpi} unit={unit} />
+            <BreakdownTakeaway kpi={kpi} comparison={comparison} />
             <DialogClose asChild>
-              <Button>Done</Button>
+              <Button className={cn(doneClassName)}>Done</Button>
             </DialogClose>
           </div>
         </DialogContent>
