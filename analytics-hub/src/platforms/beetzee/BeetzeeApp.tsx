@@ -17,6 +17,7 @@ import { PortalContainerContext } from '@/shared/portal';
 import { useStoredState } from '@/shared/useStoredState';
 import { BZ_VIEWS, isBzPeriod, isBzView, type BeetzeeData, type BzPeriod, type BzView } from './data';
 import { FEATURED_KPIS, buildKpis } from './model';
+import { GA_SNAPSHOT, GaRangePicker, buildGaKpis, buildGaReports, gaComparison, gaIsExact, gaRangeLabel, type GaSelection } from './ga4';
 import { BreakdownDialog } from '@/components/kpi/BreakdownDialog';
 import { KpiCard } from '@/components/kpi/KpiCard';
 import type { KpiData } from '@/components/kpi/types';
@@ -66,24 +67,38 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
   const [period, setPeriod] = useStoredState<BzPeriod>('bz-period', 'monthly', isBzPeriod);
   const [range, setRange] = useState<DateRange>(() => ({ from: data.periods[period].from, to: data.periods[period].to }));
   const [dateOpen, setDateOpen] = useState(false);
+  // Google Analytics range: a period preset, a calendar month, or a custom range.
+  const [gaSel, setGaSel] = useState<GaSelection>({ kind: 'preset', period });
   const [filters, setFilters] = useState<Partial<Record<BzView, string>>>({});
   const [modalKpiId, setModalKpiId] = useState<string | null>(null);
   const [openReports, setOpenReports] = useState<string[]>([]);
-  const page = PAGES[view];
+  // Application & Users shows real Google Analytics data when the local snapshot exists.
+  const ga = view === 'app' ? GA_SNAPSHOT : null;
+  const page = ga
+    ? {
+        ...PAGES.app,
+        eyebrow: 'Live · Google Analytics',
+        description: `Real app usage from Google Analytics (${ga.property.name}), pulled ${formatDateRange(ga.fetchedAt.slice(0, 10), ga.fetchedAt.slice(0, 10))}.`,
+      }
+    : PAGES[view];
   const p = data.periods[period];
-  const rangeLabel = formatDateRange(range.from, range.to);
+  const gaSelection: GaSelection = gaSel.kind === 'preset' ? { kind: 'preset', period } : gaSel;
+  const rangeLabel = ga ? gaRangeLabel(ga, gaSelection) : formatDateRange(range.from, range.to);
   const isPresetRange = range.from === p.from && range.to === p.to;
-  const comparison = isPresetRange ? p.comparison : 'vs. previous period';
-  const filterOptions = useMemo(() => reportFilters(data)[view], [data, view]);
+  const comparison = ga ? gaComparison(ga, gaSelection) : isPresetRange ? p.comparison : 'vs. previous period';
+  const filterOptions = useMemo(() => (ga ? undefined : reportFilters(data)[view]), [data, view, ga]);
   const filterId = filters[view] ?? 'all';
   const filterOption = filterOptions?.find((o) => o.id === filterId) ?? filterOptions?.[0];
   const campaignId = view === 'marketing' ? filterId : 'all';
   const filterScope = filterId !== 'all' && filterOption ? ` · ${filterOption.label}` : '';
   const kpis = useMemo(
-    () => buildKpis(data, view, period, campaignId),
-    [data, view, period, campaignId],
+    () => (ga ? buildGaKpis(ga, gaSelection) : buildKpis(data, view, period, campaignId)),
+    [ga, data, view, period, campaignId, JSON.stringify(gaSelection)],
   );
-  const reports = useMemo(() => buildReports(view, data, period, campaignId), [view, data, period, campaignId]);
+  const reports = useMemo(
+    () => (ga ? buildGaReports(ga, gaSelection) : buildReports(view, data, period, campaignId)),
+    [ga, view, data, period, campaignId, JSON.stringify(gaSelection)],
+  );
   const featuredIds = FEATURED_KPIS[view] ?? [];
   const featured = kpis.filter((k) => featuredIds.includes(k.id));
   const supporting = kpis.filter((k) => !featuredIds.includes(k.id));
@@ -101,6 +116,7 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
   const changePeriod = (next: BzPeriod) => {
     setPeriod(next);
     setRange({ from: data.periods[next].from, to: data.periods[next].to });
+    setGaSel({ kind: 'preset', period: next });
   };
 
   /** Downloads the KPIs on screen as a CSV for the selected range. */
@@ -201,9 +217,16 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
                 <PlatformSwitcher logoWidth={112} className="-ml-2" />
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <span className="rounded-full border border-dashed border-border-strong px-2.5 py-1 text-[11px] font-semibold text-muted-foreground max-[480px]:hidden">
-                  Sample data
-                </span>
+                {ga ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success max-[480px]:hidden">
+                    <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-success" />
+                    Google Analytics
+                  </span>
+                ) : (
+                  <span className="rounded-full border border-dashed border-border-strong px-2.5 py-1 text-[11px] font-semibold text-muted-foreground max-[480px]:hidden">
+                    Sample data
+                  </span>
+                )}
                 <ThemeToggle />
                 <Button
                   variant="outline"
@@ -215,6 +238,34 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
                   <Bell strokeWidth={1.8} />
                   <span aria-hidden className="absolute right-2 top-2 h-2 w-2 rounded-full bg-danger ring-2 ring-background" />
                 </Button>
+                {ga ? (
+                  <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={`Date range: ${rangeLabel}. Change`}
+                        className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-soft px-3 text-xs font-semibold transition-colors hover:border-border-strong data-[state=open]:border-border-strong"
+                      >
+                        <Calendar aria-hidden strokeWidth={1.8} className="h-4 w-4 text-chart-2" />
+                        <span className="max-[560px]:hidden">{rangeLabel}</span>
+                        <ChevronDown aria-hidden strokeWidth={1.8} className="h-3.5 w-3.5 text-subtle max-[560px]:hidden" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" sideOffset={8} className="w-[320px] max-w-[calc(100vw-32px)] rounded-[13px] border-border-strong bg-popover">
+                      {dateOpen && (
+                        <GaRangePicker
+                          ga={ga}
+                          value={gaSelection}
+                          onChange={(sel) => {
+                            setGaSel(sel);
+                            setDateOpen(false);
+                            toast(`Showing ${gaRangeLabel(ga, sel)}`);
+                          }}
+                        />
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                ) : (
                 <Popover open={dateOpen} onOpenChange={setDateOpen}>
                   <PopoverTrigger asChild>
                     <button
@@ -242,6 +293,7 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
                     )}
                   </PopoverContent>
                 </Popover>
+                )}
               </div>
             </header>
 
@@ -288,7 +340,8 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
               <div className="mb-5 mt-6 flex flex-wrap items-center justify-between gap-3">
                 <ToggleGroup
                   type="single"
-                  value={period}
+                  // A month or custom GA range clears the preset tabs.
+                  value={ga && gaSel.kind !== 'preset' ? '' : period}
                   onValueChange={(v) => isBzPeriod(v) && changePeriod(v)}
                   aria-label="Reporting period"
                   className="border-border-strong bg-soft"
@@ -299,6 +352,14 @@ export function BeetzeeApp({ data }: { data: BeetzeeData }) {
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
+
+                {ga && !gaIsExact(ga, gaSelection) && (
+                  <p role="note" className="w-full rounded-[11px] border border-warning/40 bg-warning/10 px-3.5 py-2.5 text-[12.5px] leading-relaxed text-foreground">
+                    <strong>Custom range:</strong> GA can’t add up unique users across days, so this view shows{' '}
+                    <strong>average daily active users</strong> and <strong>purchases</strong>. New users, revenue and engagement time
+                    are exact. Pick a full month or Daily / Weekly / Monthly for exact unique counts.
+                  </p>
+                )}
 
                 {filterOptions && (
                   <div className="flex items-center gap-2.5">

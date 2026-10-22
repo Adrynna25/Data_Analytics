@@ -4,3 +4,6 @@ dist/
 *.log
 .env*
 .claude/
+
+# Real Google Analytics data (local only, never committed)
+analytics-hub/src/platforms/beetzee/ga4.snapshot.json

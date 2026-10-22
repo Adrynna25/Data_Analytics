@@ -26,8 +26,10 @@ export function BreakdownReport({ kpi, comparison }: { kpi: KpiData; comparison:
           </div>
         </div>
         <p className="mt-2.5 text-[13px] leading-relaxed text-muted-foreground">
-          {kpi.label} is <strong className="text-foreground">{kpi.value}</strong>, {kpi.direction} {kpi.change} {comparison},{' '}
-          {kpi.tone === 'good' ? 'which is good news.' : 'which needs attention.'}
+          {kpi.label} is <strong className="text-foreground">{kpi.value}</strong>
+          {kpi.tone === 'neutral'
+            ? '. There is no earlier period to compare it with.'
+            : `, ${kpi.direction} ${kpi.change} ${comparison}, ${kpi.tone === 'good' ? 'which is good news.' : 'which needs attention.'}`}
         </p>
       </Part>
 
@@ -101,7 +103,7 @@ export function BreakdownReport({ kpi, comparison }: { kpi: KpiData; comparison:
           </li>
           <li>
             <strong className="text-foreground">Recommendation:</strong>{' '}
-            {kpi.tone === 'good'
+            {kpi.tone !== 'bad'
               ? `On track. ${lead ? `Keep an eye on ${lead.label}, which drives most of this number.` : 'Keep the current approach.'}`
               : `Needs attention. ${lead ? `Start with ${lead.label}.` : 'Review the inputs above.'}`}
           </li>

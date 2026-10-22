@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { KpiData } from '@/components/kpi/types';
 import { BEETZEE_DATA, type BzPeriod, type BzView } from './beetzee/data';
 import { buildKpis } from './beetzee/model';
+import { GA_SNAPSHOT, buildGaKpis, type GaSelection } from './beetzee/ga4';
 import { TRIPKET_DATA } from './tripket/data';
 
 /** "₱4.82M" → 4_820_000, "488.7K" → 488_700, "2.7%" → 2.7, "13 min" → 13. */
@@ -114,4 +115,36 @@ describe('Beetzee breakdowns reconcile for every view, period and campaign', () 
             }
           }
         });
+});
+
+describe.runIf(GA_SNAPSHOT)('Google Analytics breakdowns reconcile (local snapshot)', () => {
+  // Vitest still runs this body when the snapshot is absent, so nothing here may assume it exists.
+  const ga = GA_SNAPSHOT as NonNullable<typeof GA_SNAPSHOT>;
+  const selections: GaSelection[] = [
+    ...(['daily', 'weekly', 'monthly'] as BzPeriod[]).map((period) => ({ kind: 'preset' as const, period })),
+    ...(GA_SNAPSHOT?.months ?? []).map((m) => ({ kind: 'month' as const, month: m.month })),
+    { kind: 'custom', from: '2026-07-01', to: '2026-09-15' },
+    { kind: 'custom', from: '2026-10-10', to: '2026-10-16' },
+    { kind: 'custom', from: '2026-06-01', to: '2026-10-21' },
+    { kind: 'custom', from: '2026-09-11', to: '2026-09-11' },
+  ];
+  for (const sel of selections)
+    it(JSON.stringify(sel), () => {
+      for (const k of buildGaKpis(ga, sel)) {
+        if (k.breakdown.kind === 'sum') close(sum(k), num(k.value), `${JSON.stringify(sel)}/${k.id}`);
+      }
+      if (sel.kind === 'month') {
+        const m = ga.months.find((x) => x.month === sel.month)!.totals;
+        const byId = new Map(buildGaKpis(ga, sel).map((k) => [k.id, k]));
+        close(num(byId.get('ga-active-users')!.value), m.activeUsers, 'month active users (exact)');
+        close(num(byId.get('ga-revenue')!.value), m.totalRevenue, 'month revenue');
+      }
+    });
+
+  it('custom ranges add up exactly to GA month totals for additive metrics', () => {
+    const sep = ga.months.find((m) => m.month === '2026-09')!.totals;
+    const kpis = new Map(buildGaKpis(ga, { kind: 'custom', from: '2026-08-31', to: '2026-10-01' }).map((k) => [k.id, k]));
+    // Custom range wider than September: new users must exceed September's exact total.
+    expect(num(kpis.get('ga-new-users')!.value)).toBeGreaterThan(sep.newUsers);
+  });
 });

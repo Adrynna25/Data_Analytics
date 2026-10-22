@@ -41,8 +41,8 @@ export interface KpiData {
   value: string;
   change: string;
   direction: Direction;
-  /** Whether the change is good news (drives the pill color). */
-  tone: 'good' | 'bad';
+  /** Whether the change is good news (drives the pill color); neutral when there is nothing to compare with. */
+  tone: 'good' | 'bad' | 'neutral';
   detail: string;
   icon: IconName;
   breakdown: KpiBreakdown;

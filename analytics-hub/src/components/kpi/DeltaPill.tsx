@@ -11,10 +11,17 @@ export function DeltaPill({
 }: {
   direction: Direction;
   change: string;
-  tone: 'good' | 'bad';
+  tone: 'good' | 'bad' | 'neutral';
   className?: string;
 }) {
   const up = direction === 'up';
+  if (tone === 'neutral') {
+    return (
+      <span className={cn('inline-flex items-center rounded-full bg-soft-hover px-2 py-0.5 text-[11.5px] font-bold text-subtle', className)}>
+        No prior data
+      </span>
+    );
+  }
   return (
     <span
       className={cn(
