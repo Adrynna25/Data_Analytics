@@ -17,7 +17,8 @@ import type { Factor, KpiBreakdown, KpiData } from '@/components/kpi/types';
 import { DateRangeForm } from '@/shared/DateRangeForm';
 import { formatDateRange, MONTHS } from '@/shared/format';
 import type { IconName } from '@/shared/Icon';
-import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ACCENT_HEX, Donut, TrendChart } from './components/charts';
 import type { ReportSection } from './components/Reports';
 import type { BzPeriod } from './data';
@@ -467,7 +468,40 @@ export function buildGaReports(ga: GaSnapshot, sel: GaSelection): ReportSection[
 }
 
 // ── Range picker ────────────────────────────────────────────────────────
-/** Month shortcuts (exact GA totals) plus a custom From/To within the data's history. */
+type QuickRange = 'today' | 'yesterday' | 'last7' | 'last30' | 'thisMonth' | 'lastMonth' | 'custom';
+
+const QUICK_LABELS: Record<QuickRange, string> = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  last7: 'Last 7 days',
+  last30: 'Last 30 days',
+  thisMonth: 'This month',
+  lastMonth: 'Last month',
+  custom: 'Custom range',
+};
+
+/** "This month" / "last month" relative to the newest day in the snapshot. */
+function relativeMonths(ga: GaSnapshot) {
+  const { max } = gaBounds(ga);
+  const i = ga.months.findIndex((m) => m.month === max.slice(0, 7));
+  return { thisMonth: ga.months[i]?.month, lastMonth: ga.months[i - 1]?.month };
+}
+
+function quickFor(ga: GaSnapshot, sel: GaSelection): QuickRange {
+  if (sel.kind === 'preset') return ({ daily: 'yesterday', weekly: 'last7', monthly: 'last30' } as const)[sel.period];
+  if (sel.kind === 'month') {
+    const { thisMonth, lastMonth } = relativeMonths(ga);
+    if (sel.month === thisMonth) return 'thisMonth';
+    if (sel.month === lastMonth) return 'lastMonth';
+  }
+  return 'custom';
+}
+
+/**
+ * Date range dropdown (Yesterday, Last 7/30 days, This/Last month, Custom range)
+ * plus the From/To filter. Any full calendar month entered as a custom range uses
+ * GA's exact monthly totals.
+ */
 export function GaRangePicker({
   ga,
   value,
@@ -480,33 +514,49 @@ export function GaRangePicker({
   const { min, max } = gaBounds(ga);
   const r = resolveGa(ga, value);
   const [custom] = useState({ from: r.from, to: r.to });
+  const [quick, setQuick] = useState<QuickRange>(() => quickFor(ga, value));
+  const { thisMonth, lastMonth } = relativeMonths(ga);
+  // Today isn't in the snapshot (it ends yesterday), so it can't be chosen.
+  const available: Record<QuickRange, boolean> = {
+    today: false,
+    yesterday: true,
+    last7: true,
+    last30: true,
+    thisMonth: Boolean(thisMonth),
+    lastMonth: Boolean(lastMonth),
+    custom: true,
+  };
+
+  const pick = (q: QuickRange) => {
+    setQuick(q);
+    if (q === 'yesterday') onChange({ kind: 'preset', period: 'daily' });
+    else if (q === 'last7') onChange({ kind: 'preset', period: 'weekly' });
+    else if (q === 'last30') onChange({ kind: 'preset', period: 'monthly' });
+    else if (q === 'thisMonth' && thisMonth) onChange({ kind: 'month', month: thisMonth });
+    else if (q === 'lastMonth' && lastMonth) onChange({ kind: 'month', month: lastMonth });
+    // "Custom range" just keeps the picker open on the date filter below.
+  };
+
   return (
     <div>
-      <h2 className="text-sm font-extrabold">Choose a range</h2>
-      <p className="mt-0.5 text-[11.5px] text-subtle">
-        Data available {formatDateRange(min, max)}.
-      </p>
-      <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-subtle">Months · exact</p>
-      <div className="mt-1.5 grid grid-cols-3 gap-1.5">
-        {ga.months.map((m) => {
-          const on = value.kind === 'month' && value.month === m.month;
-          return (
-            <button
-              key={m.month}
-              type="button"
-              onClick={() => onChange({ kind: 'month', month: m.month })}
-              aria-pressed={on}
-              className={cn(
-                'rounded-lg border px-2 py-1.5 text-xs font-semibold transition-colors',
-                on ? 'border-chart-2/60 bg-primary/15 text-foreground' : 'border-border hover:border-border-strong',
-              )}
-            >
-              {monthName(m.month).split(' ')[0]}
-              {m.to === max && <span className="block text-[10px] font-medium text-subtle">to date</span>}
-            </button>
-          );
-        })}
-      </div>
+      <Label htmlFor="ga-quick" className="text-[11px] font-bold uppercase tracking-wider text-subtle">
+        Date range
+      </Label>
+      <Select value={quick} onValueChange={(v) => pick(v as QuickRange)}>
+        <SelectTrigger id="ga-quick" className="mt-1.5 h-9 rounded-[11px] border-border-strong bg-soft text-[13px] font-semibold">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="rounded-[11px] border-border-strong bg-popover">
+          {(Object.keys(QUICK_LABELS) as QuickRange[]).map((q) => (
+            <SelectItem key={q} value={q} disabled={!available[q]} className="focus:bg-accent">
+              {QUICK_LABELS[q]}
+              {q === 'today' && ' · not in snapshot'}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="mt-1.5 text-[11.5px] text-subtle">Data available {formatDateRange(min, max)}.</p>
+
       <div className="mt-4 border-t border-border pt-3">
         <DateRangeForm
           idPrefix="ga"
